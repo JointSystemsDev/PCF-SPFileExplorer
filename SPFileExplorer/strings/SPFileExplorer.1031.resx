@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  
+  <!-- Control Manifest Strings -->
+  <data name="JS SharePoint Full File Explorer" xml:space="preserve">
+    <value>JS SharePoint Vollständiger Datei-Explorer</value>
+    <comment>Anzeigename des Steuerelements</comment>
+  </data>
+  <data name="Control enables seamless browsing of SharePoint documents in a manner similar to Windows Explorer. The user-friendly interface displays the entire folder hierarchy, offering the ability to quickly locate specific folders by name. This feature ensures swift access to the required files, enhancing overall efficiency." xml:space="preserve">
+    <value>Das Steuerelement ermöglicht das nahtlose Durchsuchen von SharePoint-Dokumenten auf ähnliche Weise wie der Windows Explorer. Die benutzerfreundliche Oberfläche zeigt die gesamte Ordnerhierarchie an und bietet die Möglichkeit, bestimmte Ordner schnell nach Namen zu finden. Diese Funktion gewährleistet einen schnellen Zugriff auf die erforderlichen Dateien und steigert die Gesamteffizienz.</value>
+    <comment>Beschreibung des Steuerelements</comment>
+  </data>
+  <data name="Documents Dataset" xml:space="preserve">
+    <value>Dokumenten-Datensatz</value>
+    <comment>Anzeigename für den Dokumenten-Datensatz</comment>
+  </data>
+  <data name="Minimum Height" xml:space="preserve">
+    <value>Minimale Höhe</value>
+    <comment>Eigenschafts-Anzeigename für Mindesthöhe</comment>
+  </data>
+  <data name="Minimum height of the control in pixels" xml:space="preserve">
+    <value>Mindesthöhe des Steuerelements in Pixeln</value>
+    <comment>Eigenschaftsbeschreibung für Mindesthöhe</comment>
+  </data>
+  <data name="Hide folder tree" xml:space="preserve">
+    <value>Ordnerbaum ausblenden</value>
+    <comment>Eigenschafts-Anzeigename zum Ausblenden des Ordnerbaums</comment>
+  </data>
+  <data name="Define if folders navigation pane should be hidden (by default it is visible)" xml:space="preserve">
+    <value>Legen Sie fest, ob der Ordnernavigationsbereich ausgeblendet werden soll (standardmäßig ist er sichtbar)</value>
+    <comment>Eigenschaftsbeschreibung zum Ausblenden des Ordnerbaums</comment>
+  </data>
+  
+  <!-- UI Strings -->
+  <data name="FilterFilesByName" xml:space="preserve">
+    <value>Dateien nach Namen filtern</value>
+    <comment>Platzhalter für Suchfeld zum Filtern von Dateien</comment>
+  </data>
+  <data name="ListView" xml:space="preserve">
+    <value>Listenansicht</value>
+    <comment>Name der Listenansichtsoption</comment>
+  </data>
+  <data name="CompactView" xml:space="preserve">
+    <value>Kompaktansicht</value>
+    <comment>Name der Kompaktansichtsoption</comment>
+  </data>
+  <data name="TileView" xml:space="preserve">
+    <value>Kachelansicht</value>
+    <comment>Name der Kachelansichtsoption</comment>
+  </data>
+  <data name="OpenViewOptionsMenu" xml:space="preserve">
+    <value>Ansichtsoptionenmenü öffnen</value>
+    <comment>Titel für Ansichtsoptionen-Schaltfläche</comment>
+  </data>
+  <data name="ViewOptionsSelected" xml:space="preserve">
+    <value>Ansichtsoptionen. {0} ausgewählt.</value>
+    <comment>Aria-Label für Ansichtsoptionen. {0} ist der ausgewählte Ansichtsname</comment>
+  </data>
+  <data name="ViewItemsInList" xml:space="preserve">
+    <value>Elemente und Details in einer Liste anzeigen</value>
+    <comment>Titel für Listenansichtsoption</comment>
+  </data>
+  <data name="ViewItemsInCompactList" xml:space="preserve">
+    <value>Elemente und Details in einer kompakten Liste anzeigen</value>
+    <comment>Titel für Kompaktansichtsoption</comment>
+  </data>
+  <data name="ViewItemsWithTiles" xml:space="preserve">
+    <value>Elemente mit Kachelvorschauen anzeigen</value>
+    <comment>Titel für Kachelansichtsoption</comment>
+  </data>
+  <data name="SortAtoZ" xml:space="preserve">
+    <value>Von A bis Z sortieren</value>
+    <comment>Label für aufsteigende Sortierung</comment>
+  </data>
+  <data name="SortZtoA" xml:space="preserve">
+    <value>Von Z bis A sortieren</value>
+    <comment>Label für absteigende Sortierung</comment>
+  </data>
+  <data name="SortedAtoZ" xml:space="preserve">
+    <value>Von A bis Z sortiert</value>
+    <comment>Aria-Label für aufsteigende Sortierung</comment>
+  </data>
+  <data name="SortedZtoA" xml:space="preserve">
+    <value>Von Z bis A sortiert</value>
+    <comment>Aria-Label für absteigende Sortierung</comment>
+  </data>
+  <data name="Loading" xml:space="preserve">
+    <value>Wird geladen...</value>
+    <comment>Label für Ladeanimation</comment>
+  </data>
+  <data name="FileActions" xml:space="preserve">
+    <value>Dateiaktionen</value>
+    <comment>CommandBar Aria-Label</comment>
+  </data>
+  <data name="NoFilesMatchSearch" xml:space="preserve">
+    <value>Keine Dateien entsprechen Ihrer Suche.</value>
+    <comment>Meldung, wenn die Suche keine Ergebnisse zurückgibt</comment>
+  </data>
+  <data name="FolderIsEmpty" xml:space="preserve">
+    <value>Dieser Ordner ist leer.</value>
+    <comment>Meldung, wenn der Ordner keine Elemente enthält</comment>
+  </data>
+  <data name="SelectFolder" xml:space="preserve">
+    <value>Bitte wählen Sie einen Ordner aus, um dessen Inhalt zu erkunden.</value>
+    <comment>Meldung, die zur Auswahl eines Ordners auffordert</comment>
+  </data>
+  <data name="FilterFolderByName" xml:space="preserve">
+    <value>Ordner nach Namen filtern</value>
+    <comment>Platzhalter für Suchfeld zum Filtern von Ordnern</comment>
+  </data>
+  <data name="SearchNoResults" xml:space="preserve">
+    <value>Ihre Suche hat keine Ergebnisse zurückgegeben.</value>
+    <comment>Meldung, wenn die Ordnersuche keine Ergebnisse zurückgibt</comment>
+  </data>
+  <data name="NoFoldersToShow" xml:space="preserve">
+    <value>Es gibt keine Ordner zum Anzeigen.</value>
+    <comment>Meldung, wenn keine Ordner vorhanden sind</comment>
+  </data>
+  <data name="ViewOptionsLabel" xml:space="preserve">
+    <value>Ansichtsoptionen. {0}{1}.</value>
+    <comment>Aria-Label-Format für Ansichtsoptionen. {0} ist der Ansichtstyp, {1} ist " ausgewählt", falls ausgewählt</comment>
+  </data>
+  <data name="Selected" xml:space="preserve">
+    <value> ausgewählt</value>
+    <comment>Text, der angehängt wird, wenn eine Option ausgewählt ist</comment>
+  </data>
+</root>

@@ -3,6 +3,7 @@ import { IInputs } from "../generated/ManifestTypes";
 import { IFileSystemItem } from "./IFileSystemItem";
 import { IFolder } from "./IFolder";
 import { IFullFileExplorerProps } from "./IFullFileExplorerProps";
+import { IResourceStrings } from "../IResourceStrings";
 
 export const ALL_ITEMS_PAGE_SIZE = 5000;
 
@@ -70,7 +71,8 @@ const buildFolderTreeFromDocuments = (
  */
 export const initFullFileExplorerProps = (
   context: ComponentFramework.Context<IInputs>,
-  controlCache: { [index: string]: any }
+  controlCache: { [index: string]: any },
+  resources: IResourceStrings
 ): IFullFileExplorerProps => {
   const dataSet = context.parameters.documentsDataSet;
   let folderStructure = controlCache[FOLDER_STRUCTURE_KEY] as IFolder;
@@ -255,5 +257,6 @@ export const initFullFileExplorerProps = (
       dataSet.refresh();
     },
     currentFolderPath,
+    resources,
   };
 };

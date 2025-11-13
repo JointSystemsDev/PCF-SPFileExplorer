@@ -4,6 +4,7 @@ import {IInputs, IOutputs} from "./generated/ManifestTypes";
 import FullFileExplorer from "./controls/FullFileExplorer";
 import { initMockFullFileExplorerProps } from "./controls/MockFullFileExplorerProps";
 import { ALL_ITEMS_PAGE_SIZE, initFullFileExplorerProps } from "./controls/FullFileExplorerProps";
+import { IResourceStrings } from "./IResourceStrings";
 
 export class SPFileExplorer implements ComponentFramework.StandardControl<IInputs, IOutputs> {
     private _container: HTMLDivElement;
@@ -49,8 +50,9 @@ export class SPFileExplorer implements ComponentFramework.StandardControl<IInput
             context.parameters.documentsDataSet.paging.setPageSize(ALL_ITEMS_PAGE_SIZE);
             context.parameters.documentsDataSet.paging.loadNextPage();
         } else {
-            const explorerProperties = this._isSandbox()? initMockFullFileExplorerProps(()=>this.updateView(context))
-            : initFullFileExplorerProps(context, this._controlCache);
+            const resources = this._getResourceStrings(context);
+            const explorerProperties = this._isSandbox()? initMockFullFileExplorerProps(()=>this.updateView(context), resources)
+            : initFullFileExplorerProps(context, this._controlCache, resources);
 
             ReactDOM.render(React.createElement(FullFileExplorer,
                 explorerProperties 
@@ -79,5 +81,34 @@ export class SPFileExplorer implements ComponentFramework.StandardControl<IInput
     private _isSandbox(): boolean
     {
         return window?.location?.href?.toLowerCase().indexOf("dynamics.com") < 0;
+    }
+
+    private _getResourceStrings(context: ComponentFramework.Context<IInputs>): IResourceStrings
+    {
+        return {
+            FilterFilesByName: context.resources.getString("FilterFilesByName"),
+            ListView: context.resources.getString("ListView"),
+            CompactView: context.resources.getString("CompactView"),
+            TileView: context.resources.getString("TileView"),
+            OpenViewOptionsMenu: context.resources.getString("OpenViewOptionsMenu"),
+            ViewOptionsSelected: context.resources.getString("ViewOptionsSelected"),
+            ViewItemsInList: context.resources.getString("ViewItemsInList"),
+            ViewItemsInCompactList: context.resources.getString("ViewItemsInCompactList"),
+            ViewItemsWithTiles: context.resources.getString("ViewItemsWithTiles"),
+            SortAtoZ: context.resources.getString("SortAtoZ"),
+            SortZtoA: context.resources.getString("SortZtoA"),
+            SortedAtoZ: context.resources.getString("SortedAtoZ"),
+            SortedZtoA: context.resources.getString("SortedZtoA"),
+            Loading: context.resources.getString("Loading"),
+            FileActions: context.resources.getString("FileActions"),
+            NoFilesMatchSearch: context.resources.getString("NoFilesMatchSearch"),
+            FolderIsEmpty: context.resources.getString("FolderIsEmpty"),
+            SelectFolder: context.resources.getString("SelectFolder"),
+            FilterFolderByName: context.resources.getString("FilterFolderByName"),
+            SearchNoResults: context.resources.getString("SearchNoResults"),
+            NoFoldersToShow: context.resources.getString("NoFoldersToShow"),
+            ViewOptionsLabel: context.resources.getString("ViewOptionsLabel"),
+            Selected: context.resources.getString("Selected")
+        };
     }
 }

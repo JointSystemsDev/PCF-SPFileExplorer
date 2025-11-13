@@ -146,7 +146,7 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
         key: "filter",
         onRender: () => (
           <SearchBox
-            placeholder="Filter files by name"
+            placeholder={props.resources.FilterFilesByName}
             underlined={false}
             className="filesSearchBox"
             styles={{ root: { width: 200, marginLeft: 8 } }}
@@ -164,23 +164,23 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
     switch (controlState.viewType) {
       case ViewType.List:
         viewIconName = "List";
-        viewName = "List view";
+        viewName = props.resources.ListView;
         break;
       case ViewType.Compact:
         viewIconName = "AlignLeft";
-        viewName = "Compact view";
+        viewName = props.resources.CompactView;
         break;
       default:
         viewIconName = "GridViewMedium";
-        viewName = "Tile view";
+        viewName = props.resources.TileView;
     }
 
     const farItems: ICommandBarItemProps[] = [
       {
         key: "listOptions",
         className: "commandBarNoChevron",
-        title: "Open the view options menu",
-        ariaLabel: `View options. ${viewName} selected.`,
+        title: props.resources.OpenViewOptionsMenu,
+        ariaLabel: props.resources.ViewOptionsSelected.replace('{0}', viewName),
         name: viewName,
         iconProps: {
           iconName: viewIconName,
@@ -190,16 +190,14 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
           items: [
             {
               key: ViewType.List.toString(),
-              name: "List view",
+              name: props.resources.ListView,
               iconProps: {
                 iconName: "List",
               },
               canCheck: true,
               checked: controlState.viewType === ViewType.List,
-              ariaLabel: `View options. List view${
-                controlState.viewType === ViewType.List ? " selected" : ""
-              }.`,
-              title: "View items and details in a list",
+              ariaLabel: props.resources.ViewOptionsLabel.replace('{0}', props.resources.ListView).replace('{1}', controlState.viewType === ViewType.List ? props.resources.Selected : ''),
+              title: props.resources.ViewItemsInList,
               onClick: (
                 _ev?:
                   | React.MouseEvent<HTMLElement>
@@ -209,16 +207,14 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
             },
             {
               key: ViewType.Compact.toString(),
-              name: "Compact view",
+              name: props.resources.CompactView,
               iconProps: {
                 iconName: "AlignLeft",
               },
               canCheck: true,
               checked: controlState.viewType === ViewType.Compact,
-              ariaLabel: `View options. Compact view${
-                controlState.viewType === ViewType.Compact ? " selected" : ""
-              }.`,
-              title: "View items and details in a compact list",
+              ariaLabel: props.resources.ViewOptionsLabel.replace('{0}', props.resources.CompactView).replace('{1}', controlState.viewType === ViewType.Compact ? props.resources.Selected : ''),
+              title: props.resources.ViewItemsInCompactList,
               onClick: (
                 _ev?:
                   | React.MouseEvent<HTMLElement>
@@ -228,16 +224,14 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
             },
             {
               key: ViewType.Tiles.toString(),
-              name: "Tile view",
+              name: props.resources.TileView,
               iconProps: {
                 iconName: "GridViewMedium",
               },
               canCheck: true,
               checked: controlState.viewType === ViewType.Tiles,
-              ariaLabel: `View options. Tile view${
-                controlState.viewType === ViewType.Tiles ? " selected" : ""
-              }.`,
-              title: "View items with tile previews",
+              ariaLabel: props.resources.ViewOptionsLabel.replace('{0}', props.resources.TileView).replace('{1}', controlState.viewType === ViewType.Tiles ? props.resources.Selected : ''),
+              title: props.resources.ViewItemsWithTiles,
               onClick: (
                 _ev?:
                   | React.MouseEvent<HTMLElement>
@@ -370,7 +364,7 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
         items: [
           {
             key: "aToZ",
-            name: "Sort A to Z",
+            name: props.resources.SortAtoZ,
             //iconProps: { iconName: "SortUp" },
             canCheck: true,
             checked: column.isSorted && !column.isSortedDescending,
@@ -378,7 +372,7 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
           },
           {
             key: "zToA",
-            name: "Sort Z to A",
+            name: props.resources.SortZtoA,
             //iconProps: { iconName: "SortDown" },
             canCheck: true,
             checked: column.isSorted && column.isSortedDescending,
@@ -408,8 +402,8 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
         isRowHeader: true,
         isSorted: c.isSorted,
         isSortedDescending: c.isSortedDescending,
-        sortAscendingAriaLabel: c.sortAscendingLabel ?? "Sorted A to Z",
-        sortDescendingAriaLabel: c.sortDescendingLabel ?? "Sorted Z to A",
+        sortAscendingAriaLabel: c.sortAscendingLabel ?? props.resources.SortedAtoZ,
+        sortDescendingAriaLabel: c.sortDescendingLabel ?? props.resources.SortedZtoA,
 
         onColumnClick: onColumnClick,
         onRender: (item, index, column) =>
@@ -432,7 +426,7 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
               height: "100%",
             }}
             size={SpinnerSize.large}
-            label="Loading..."
+            label={props.resources.Loading}
             ariaLive="assertive"
             labelPosition="bottom"
           />
@@ -450,6 +444,7 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
           <FolderExplorer
             rootItem={controlState.rootFolder}
             hideSearchBox={props.hideFoldersSearchBox}
+            resources={props.resources}
           ></FolderExplorer>
         )}
 
@@ -458,7 +453,7 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
             className="explorerCommandBar"
             items={getCommandBarItems()}
             farItems={getViewTypeCommandBarItems()}
-            ariaLabel="File actions"
+            ariaLabel={props.resources.FileActions}
           />
           <div className="fileView">
             {controlState.selectedFolderPath ? (
@@ -498,13 +493,13 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
                   </div>
                 ) : (
                   <div className="emptyFolderMessage">
-                    {controlState.fileFilterText ? 'No files match your search.' : 'This folder is empty.'}
+                    {controlState.fileFilterText ? props.resources.NoFilesMatchSearch : props.resources.FolderIsEmpty}
                   </div>
                 )}
               </>
             ) : (
               <div className="selectFolderMessage">
-                Please, select a folder to explore its content.
+                {props.resources.SelectFolder}
               </div>
             )}
           </div>

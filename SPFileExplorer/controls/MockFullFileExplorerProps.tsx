@@ -2,6 +2,7 @@ import { IFileSystemItem } from "./IFileSystemItem";
 import { IFileViewColumn } from "./IFileViewColumn";
 import { IFolder } from "./IFolder";
 import { IFullFileExplorerProps } from "./IFullFileExplorerProps";
+import { IResourceStrings } from "../IResourceStrings";
 
 const MOCK_SHAREPOINT_URL = "https://mock.sharepoint.com/documents";
 
@@ -473,56 +474,62 @@ const getFolderContent: (path: string) => IFileSystemItem[] = (
     : [];
 };
 
-const mockFullFileExplorerProps: IFullFileExplorerProps = {
-  columns: mockColumns,
-  currentFolderPath: mockFileStructure.path,
-  selectedRecordsKeys: [],
-  currentFolderContent: getFolderContent(mockFileStructure.path),
-  getFolderStructure: function (): Promise<IFolder> {
-    return new Promise<IFolder>((resolve) => {
-      resolve(getFolderFromMock(mockFileStructure));
-    });
-  },
-  setCurrentFolder: function (path: string): void {
-    mockFullFileExplorerProps.currentFolderPath = path;
-    mockFullFileExplorerProps.currentFolderContent = getFolderContent(path);
-    if (refreshMockComponent) {
-      refreshMockComponent();
-    }
-  },
-  selectRecords: function (ids: string[]): void {
-    mockFullFileExplorerProps.selectedRecordsKeys = ids;
-  },
-
-  openRecord: function (id: string): void {
-    const record = mockFullFileExplorerProps.currentFolderContent.find(
-      (m) => m.id === id
-    );
-    if (record) {
-      if (record.filetype == "folder") {
-        mockFullFileExplorerProps.setCurrentFolder(record.path);
-      } else {
-        alert(`File ${record.fullname} has been opened`);
-      }
-    }
-  },
-
-  setSorting: function (column: string, ascending: boolean): void {
-    sortColumn = column;
-    isSorAscending = ascending;
-
-    mockFullFileExplorerProps.setCurrentFolder(
-      mockFullFileExplorerProps.currentFolderPath
-    );
-  },
-};
+let mockFullFileExplorerProps: Partial<IFullFileExplorerProps>;
 
 /**
  * Function that initializes mock properties of the full file explorer control.
  */
 export const initMockFullFileExplorerProps = (
-  refreshComponent: () => void
+  refreshComponent: () => void,
+  resources: IResourceStrings
 ): IFullFileExplorerProps => {
   refreshMockComponent = refreshComponent;
-  return mockFullFileExplorerProps;
+  
+  mockFullFileExplorerProps = {
+    columns: mockColumns,
+    currentFolderPath: mockFileStructure.path,
+    selectedRecordsKeys: [],
+    currentFolderContent: getFolderContent(mockFileStructure.path),
+    getFolderStructure: function (): Promise<IFolder> {
+      return new Promise<IFolder>((resolve) => {
+        resolve(getFolderFromMock(mockFileStructure));
+      });
+    },
+    setCurrentFolder: function (path: string): void {
+      if (mockFullFileExplorerProps) {
+        mockFullFileExplorerProps.currentFolderPath = path;
+        mockFullFileExplorerProps.currentFolderContent = getFolderContent(path);
+        if (refreshMockComponent) {
+          refreshMockComponent();
+        }
+      }
+    },
+    selectRecords: function (ids: string[]): void {
+      if (mockFullFileExplorerProps) {
+        mockFullFileExplorerProps.selectedRecordsKeys = ids;
+      }
+    },
+    openRecord: function (id: string): void {
+      const record = mockFullFileExplorerProps?.currentFolderContent?.find(
+        (m) => m.id === id
+      );
+      if (record) {
+        if (record.filetype == "folder") {
+          mockFullFileExplorerProps?.setCurrentFolder?.(record.path);
+        } else {
+          alert(`File ${record.fullname} has been opened`);
+        }
+      }
+    },
+    setSorting: function (column: string, ascending: boolean): void {
+      sortColumn = column;
+      isSorAscending = ascending;
+      mockFullFileExplorerProps?.setCurrentFolder?.(
+        mockFullFileExplorerProps.currentFolderPath || mockFileStructure.path
+      );
+    },
+    resources,
+  };
+
+  return mockFullFileExplorerProps as IFullFileExplorerProps;
 };

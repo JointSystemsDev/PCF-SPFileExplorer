@@ -1,6 +1,7 @@
 import { IFileSystemItem } from "./IFileSystemItem";
 import { IFileViewColumn } from "./IFileViewColumn";
 import { IFolder } from "./IFolder";
+import { IResourceStrings } from "../IResourceStrings";
 
 /**
  * Type of view to be presented to user.
@@ -77,4 +78,8 @@ export interface IFullFileExplorerProps {
    * @param ascending Indicates if the records should be sorted ascending.
    */
   setSorting: (column: string, ascending: boolean) => void;
+  /**
+   * Localized resource strings for the component.
+   */
+  resources: IResourceStrings;
 }
