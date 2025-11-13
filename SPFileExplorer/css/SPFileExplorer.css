@@ -42,7 +42,8 @@
   padding: 0 15px;
 }
 
-.foldersSearchBox {
+.foldersSearchBox,
+.filesSearchBox {
   height: 45px;
   border-color: #f3f2f1;
 }

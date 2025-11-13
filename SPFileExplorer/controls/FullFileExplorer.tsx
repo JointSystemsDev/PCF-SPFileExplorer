@@ -40,6 +40,7 @@ import { IFullFileExplorerProps, ViewType } from "./IFullFileExplorerProps";
 import { IFileSystemItem } from "./IFileSystemItem";
 import { IFolder } from "./IFolder";
 import { IFileViewColumn } from "./IFileViewColumn";
+import { SearchBox } from "@fluentui/react/lib/SearchBox";
 
 interface IFullFileExplorerState {
   viewType: ViewType;
@@ -51,13 +52,15 @@ interface IFullFileExplorerState {
   currentFolderContent: IFileSystemItem[];
   rootFolder: IFolder;
   contextualMenuProps?: IContextualMenuProps;
+  fileFilterText?: string;
 }
 
 const FullFileExplorer = (props: IFullFileExplorerProps) => {
   const [controlState, setControlState] = useState({
-    viewType: props.defaultViewType ?? ViewType.Tiles,
+    viewType: props.defaultViewType ?? ViewType.Compact,
     selectedFolderPath: props.currentFolderPath,
     expandedFolders: [props.currentFolderPath],
+    fileFilterText: undefined,
   } as IFullFileExplorerState);
 
   const handleSelectionChange = () => {
@@ -95,19 +98,37 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
   }, []);
 
   useEffect(() => {
+    const filteredContent = filterFileContent(props.currentFolderContent, controlState.fileFilterText);
+    
     selection.setChangeEvents(false);
-    selection.setItems(props.currentFolderContent);
+    selection.setItems(filteredContent);
 
     props.selectedRecordsKeys.forEach((id) => {
       selection.setKeySelected(id, true, false);
     });
     selection.setChangeEvents(true);
+  }, [props.currentFolderContent, props.selectedRecordsKeys, controlState.fileFilterText]);
 
+  const filterFileContent = (items: IFileSystemItem[], filterText?: string): IFileSystemItem[] => {
+    if (!filterText || filterText.trim() === '') {
+      return items;
+    }
+    const lowerFilterText = filterText.toLowerCase().trim();
+    return items.filter((item) => 
+      item && item.fullname && item.fullname.toLowerCase().includes(lowerFilterText)
+    );
+  };
+
+  const onFileFilterChanged = (newFilterText: string | undefined) => {
     setControlState({
       ...controlState,
-      currentFolderContent: props.currentFolderContent,
+      fileFilterText: newFilterText,
     });
-  }, [props.currentFolderContent, props.selectedRecordsKeys]);
+  };
+
+  const getFilteredContent = (): IFileSystemItem[] => {
+    return filterFileContent(props.currentFolderContent, controlState.fileFilterText);
+  };
 
   const handleSwitchLayout = (item?: IContextualMenuItem) => {
     if (item) {
@@ -117,6 +138,24 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
         viewType: +item.key as ViewType,
       });
     }
+  };
+
+  const getCommandBarItems = (): ICommandBarItemProps[] => {
+    return [
+      {
+        key: "filter",
+        onRender: () => (
+          <SearchBox
+            placeholder="Filter files by name"
+            underlined={false}
+            className="filesSearchBox"
+            styles={{ root: { width: 200, marginLeft: 8 } }}
+            onSearch={onFileFilterChanged}
+            onChange={(e, value) => onFileFilterChanged(value)}
+          />
+        ),
+      },
+    ];
   };
 
   const getViewTypeCommandBarItems = (): ICommandBarItemProps[] => {
@@ -417,7 +456,7 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
         <div className="filesViewPanel">
           <CommandBar
             className="explorerCommandBar"
-            items={[]}
+            items={getCommandBarItems()}
             farItems={getViewTypeCommandBarItems()}
             ariaLabel="File actions"
           />
@@ -429,14 +468,13 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
                     items={buildBreadcrums(controlState.rootFolder)}
                   ></Breadcrumb>
                 )}
-                {controlState.currentFolderContent &&
-                controlState.currentFolderContent.length > 0 ? (
+                {getFilteredContent().length > 0 ? (
                   <div className="fileViewContent">
                     <MarqueeSelection selection={selection}>
                       {controlState.viewType !== ViewType.Tiles ? (
                         <>
                           <DetailsList
-                            items={controlState.currentFolderContent}
+                            items={getFilteredContent()}
                             compact={controlState.viewType === ViewType.Compact}
                             columns={getViewColumns(props.columns)}
                             setKey="key"
@@ -450,7 +488,7 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
                         </>
                       ) : (
                         <TilesView
-                          items={controlState.currentFolderContent}
+                          items={getFilteredContent()}
                           tileSize={"large"}
                           openFileItem={openFileItem}
                           selection={selection}
@@ -459,7 +497,9 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
                     </MarqueeSelection>
                   </div>
                 ) : (
-                  <div className="emptyFolderMessage">This folder is empty</div>
+                  <div className="emptyFolderMessage">
+                    {controlState.fileFilterText ? 'No files match your search.' : 'This folder is empty.'}
+                  </div>
                 )}
               </>
             ) : (

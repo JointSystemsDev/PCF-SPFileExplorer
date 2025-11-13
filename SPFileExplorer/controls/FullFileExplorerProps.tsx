@@ -9,165 +9,61 @@ export const ALL_ITEMS_PAGE_SIZE = 5000;
 const SHARED_LOCATION_GUID = "17DE0DBB-153C-4C1A-B98A-223B3EA10125";
 const FOLDER_STRUCTURE_KEY = "FolderStructure";
 
-const retrieveSubFoldersRecursive = (
-  context: ComponentFramework.Context<IInputs>,
-  relativeUrl: string
-): Promise<IFolder[]> => {
-  return new Promise<IFolder[]>((resolve) => {
-    const entityType =
-      context.parameters.documentsDataSet.getTargetEntityType();
-    const contextPage = (context as any).page;
-    const escapedRelativeUrl = relativeUrl
-      .split("&")
-      .join("&amp;")
-      .split("<")
-      .join("&lt;")
-      .split(">")
-      .join("&gt;")
-      .split("'")
-      .join("&apos;")
-      .split('"')
-      .join("&quot;");
-
-    const subfoldersFetchXml =
-      `<fetch mapping="logical" count="${ALL_ITEMS_PAGE_SIZE}">
-                <entity name="${entityType}">
-                    <attribute name="documentid"/>
-                    <attribute name="filetype"/>
-                    <attribute name="relativelocation"/>
-                    <attribute name="fullname"/>
-                    <order attribute="relativelocation" descending="false"/>
-                    <filter type="and">
-                        <condition attribute="isrecursivefetch" operator="eq" value="0"/>
-                        <condition attribute="filetype" operator="null"/>
-                        <condition attribute="relativelocation" operator="eq" value="${escapedRelativeUrl}"/>
-                    </filter>` +
-      (contextPage && contextPage.entityId && contextPage.entityTypeName
-        ? `<link-entity name="${contextPage.entityTypeName}" from="${contextPage.entityTypeName}id" to="regardingobjectid" alias="bb">
-                        <filter type="and">
-                            <condition attribute="${contextPage.entityTypeName}id" operator="eq" uitype="${contextPage.entityTypeName}" value="${contextPage.entityId}"/>
-                        </filter>
-                    </link-entity>`
-        : "") +
-      `</entity>
-            </fetch >`;
-    const subfoldersFetchQuery =
-      "?fetchXml=" + encodeURIComponent(subfoldersFetchXml);
-    context.webAPI
-      .retrieveMultipleRecords(entityType, subfoldersFetchQuery)
-      .then(async (result) => {
-        let childFolders: IFolder[] = [];
-
-        if (result.entities) {
-          childFolders = result.entities
-            .filter((e) => e.filetype == "folder")
-            .map((e) => {
-              return {
-                path: e.relativelocation,
-                key: e.relativelocation,
-                name: e.fullname,
-                children: [],
-              } as IFolder;
-            });
-
-          await Promise.all(
-            childFolders.map(
-              async (c) =>
-                (c.children = await retrieveSubFoldersRecursive(
-                  context,
-                  c.path
-                ))
-            )
-          );
-        }
-        resolve(childFolders);
-      })
-      .catch(() => {
-        resolve([]);
-      });
-  });
-};
-
-const findSubfolderRecursive = (
-  folder: IFolder,
-  pathToFind: string
-): IFolder | null => {
-  let result: IFolder | null = null;
-  if (folder.path == pathToFind) {
-    result = folder;
-  } else {
-    folder.children?.forEach((s) => {
-      if (!result) result = findSubfolderRecursive(s, pathToFind);
-    });
-  }
-
-  return result;
-};
-
-const ensureSubfolders = (
-  folder: IFolder,
-  folderContent: IFileSystemItem[]
-): boolean => {
-  let subfoldersChanged = false;
-  const subfolders = folderContent.filter((f) => f.filetype === "folder");
-
-  subfolders.forEach((s) => {
-    if (!folder.children?.find((e) => e.path == s.relativelocation)) {
-      subfoldersChanged = true;
-      folder.children?.push({
-        path: s.relativelocation,
-        key: s.relativelocation,
-        name: s.fullname,
-        children: [],
-      });
-    }
-  });
-  if (subfoldersChanged) {
-    folder.children?.sort((a, b) => {
-      return a.path < b.path ? -1 : a.path > b.path ? 1 : 0;
-    });
-  }
-  return subfoldersChanged;
-};
-
-const refreshSubfoldersRecursive = (
-  currentFolder: IFolder,
-  refreshedSubfolders: IFolder[]
-): boolean => {
-  let updated = false;
-  const newFolders: IFolder[] = [];
-  const removedFolders: IFolder[] = [];
-
-  refreshedSubfolders.forEach((f) => {
-    const existingFolder = currentFolder.children?.find((c) => f.key == c.key);
-    if (!existingFolder) {
-      newFolders.push(f);
+const buildFolderTreeFromDocuments = (
+  rootPath: string,
+  documents: IFileSystemItem[]
+): IFolder[] => {
+  const folderMap: { [path: string]: IFolder } = {};
+  
+  // Extract unique folder paths from documents
+  documents.forEach((doc) => {
+    const docPath = doc.relativelocation || doc.path;
+    if (docPath && docPath !== rootPath) {
+      // Only process paths that start with the root path + "/"
+      if (docPath.startsWith(rootPath + '/')) {
+        // Remove the root path prefix to get relative path
+        const relativePath = docPath.substring(rootPath.length + 1);
+        const pathParts = relativePath.split('/').filter((p: string) => p);
+        let currentPath = '';
+        
+        pathParts.forEach((part: string, index: number) => {
+          const fullPath = rootPath + '/' + (currentPath ? currentPath + '/' : '') + part;
+          currentPath = currentPath ? currentPath + '/' + part : part;
+          
+          // Only create folder if it's not the document itself (folders don't have extensions typically)
+          if (doc.filetype === 'folder' || index < pathParts.length - 1) {
+            if (!folderMap[fullPath]) {
+              folderMap[fullPath] = {
+                path: fullPath,
+                key: fullPath,
+                name: part,
+                children: []
+              };
+            }
+          }
+        });
+      }
     }
   });
 
-  currentFolder.children?.forEach((c) => {
-    const refreshedFolder = refreshedSubfolders.find((f) => f.key == c.key);
-    if (refreshedFolder && refreshedFolder.children) {
-      updated =
-        updated || refreshSubfoldersRecursive(c, refreshedFolder.children);
-    } else {
-      removedFolders.push(c);
-    }
-  });
-
-  if (newFolders.length > 0 || removedFolders.length > 0) {
-    removedFolders.forEach((c) =>
-      currentFolder.children?.splice(currentFolder.children?.indexOf(c), 1)
-    );
-    currentFolder.children?.push(...newFolders);
-
-    currentFolder.children?.sort((a, b) => {
-      return a.path < b.path ? -1 : a.path > b.path ? 1 : 0;
+  // Build hierarchical structure - only get direct children of root
+  const buildHierarchy = (parentPath: string): IFolder[] => {
+    const children: IFolder[] = [];
+    
+    Object.values(folderMap).forEach((folder) => {
+      const folderParentPath = folder.path.substring(0, folder.path.lastIndexOf('/'));
+      if (folderParentPath === parentPath) {
+        folder.children = buildHierarchy(folder.path);
+        children.push(folder);
+      }
     });
-    updated = true;
-  }
-  return updated;
+    
+    return children.sort((a, b) => a.name.localeCompare(b.name));
+  };
+  
+  return buildHierarchy(rootPath);
 };
+
 
 /**
  * Function that initilizes properties of the full file explorer control.
@@ -214,25 +110,22 @@ export const initFullFileExplorerProps = (
       ? ""
       : (relativelocationCondition[0].value as string);
 
-  if (folderStructure) {
-    const currentFolder =
-      currentFolderPath === ""
-        ? folderStructure
-        : findSubfolderRecursive(folderStructure, currentFolderPath);
-
-    if (
-      currentFolder &&
-      ensureSubfolders(currentFolder, currentFolderContent)
-    ) {
-      dataSet.refresh();
-    }
-
-    retrieveSubFoldersRecursive(context, folderStructure.path).then(
-      (refreshedSubfolders) => {
-        if (refreshSubfoldersRecursive(folderStructure, refreshedSubfolders)) {
-          dataSet.refresh();
-        }
-      }
+  // Rebuild folder structure from all loaded documents if we have a root folder
+  if (folderStructure && dataSet.sortedRecordIds.length > 0) {
+    // Get all documents from the dataset (not just current folder)
+    const allDocuments = dataSet.sortedRecordIds.map((recordId) => {
+      const record = dataSet.records[recordId];
+      return {
+        relativelocation: record.getFormattedValue("relativelocation"),
+        filetype: record.getFormattedValue("filetype"),
+        path: record.getFormattedValue("relativelocation"),
+      } as any;
+    });
+    
+    // Rebuild the folder tree from documents
+    folderStructure.children = buildFolderTreeFromDocuments(
+      folderStructure.path,
+      allDocuments
     );
   }
 
@@ -295,19 +188,29 @@ export const initFullFileExplorerProps = (
         } else {
           context.webAPI
             .retrieveMultipleRecords(locationEntityName, locationFetchQuery)
-            .then(async (result) => {
+            .then((result) => {
               const sharepointLocation =
                 result && result.entities && result.entities.length > 0
                   ? result.entities[0]
                   : null;
               if (sharepointLocation) {
+                // Get all documents to build folder structure
+                const allDocuments = dataSet.sortedRecordIds.map((recordId) => {
+                  const record = dataSet.records[recordId];
+                  return {
+                    relativelocation: record.getFormattedValue("relativelocation"),
+                    filetype: record.getFormattedValue("filetype"),
+                    path: record.getFormattedValue("relativelocation"),
+                  } as any;
+                });
+                
                 controlCache[FOLDER_STRUCTURE_KEY] = folderStructure = {
                   name: sharepointLocation.name,
                   path: sharepointLocation.relativeurl,
                   key: sharepointLocation.relativeurl,
-                  children: await retrieveSubFoldersRecursive(
-                    context,
-                    sharepointLocation.relativeurl
+                  children: buildFolderTreeFromDocuments(
+                    sharepointLocation.relativeurl,
+                    allDocuments
                   ),
                 };
                 resolve(folderStructure);
@@ -328,25 +231,26 @@ export const initFullFileExplorerProps = (
       dataSet.refresh();
     },
     setCurrentFolder: (path: string): void => {
-      const dataFilter = dataSet.filtering.getFilter() ?? { conditions: [] };
+      const existingFilter = dataSet.filtering.getFilter();
+      const dataFilter = existingFilter ?? { 
+        conditions: [],
+        filterOperator: 0 
+      };
       const locationConditionId = dataFilter.conditions.findIndex(
         (item) => item.attributeName == "relativelocation"
       );
-      if (path == "" || (folderStructure && folderStructure.path == path)) {
-        if (locationConditionId > -1) {
-          dataFilter.conditions.splice(locationConditionId, 1);
-        }
+      
+      // Always set a filter, even for root folder
+      if (locationConditionId == -1) {
+        dataFilter.conditions.push({
+          attributeName: "relativelocation",
+          value: path,
+          conditionOperator: 0, // Equals operator
+        });
       } else {
-        if (locationConditionId == -1) {
-          dataFilter.conditions.push({
-            attributeName: "relativelocation",
-            value: path,
-            conditionOperator: 0,
-          });
-        } else {
-          dataFilter.conditions[locationConditionId].value = path;
-        }
+        dataFilter.conditions[locationConditionId].value = path;
       }
+      
       dataSet.filtering.setFilter(dataFilter);
       dataSet.refresh();
     },
