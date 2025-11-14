@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest>
-  <control namespace="JSSPFileExplorer" constructor="SPFileExplorer" version="0.1.4" display-name-key="JS SharePoint Full File Explorer" description-key="Control enables seamless browsing of SharePoint documents in a manner similar to Windows Explorer. The user-friendly interface displays the entire folder hierarchy, offering the ability to quickly locate specific folders by name. This feature ensures swift access to the required files, enhancing overall efficiency." control-type="standard">
+  <control namespace="JSSPFileExplorer" constructor="SPFileExplorer" version="0.1.13" display-name-key="JS SharePoint Full File Explorer" description-key="Control enables seamless browsing of SharePoint documents in a manner similar to Windows Explorer. The user-friendly interface displays the entire folder hierarchy, offering the ability to quickly locate specific folders by name. This feature ensures swift access to the required files, enhancing overall efficiency." control-type="standard">
     <!--external-service-usage
     node declares whether this 3rd party PCF control is using external
     service or not, if yes, this control will be considered as premium and please also add the
@@ -31,6 +31,7 @@
     </data-set>
     <property name="minHeight" display-name-key="Minimum Height" description-key="Minimum height of the control in pixels" of-type="Whole.None" usage="input" required="false" default-value="350"/>
     <property name="hideFoldersPane" display-name-key="Hide folder tree" description-key="Define if folders navigation pane should be hidden (by default it is visible)" of-type="TwoOptions" usage="input" required="false" default-value="false"/>
+    <property name="useClientSideFiltering" display-name-key="Use Client-Side Filtering" description-key="Enable client-side filtering for faster folder navigation. When enabled, documents are cached and filtered in memory. When disabled, data is always fetched fresh from the server." of-type="TwoOptions" usage="input" required="false" default-value="false"/>
 
     <resources>
       <code path="index.ts" order="1" />

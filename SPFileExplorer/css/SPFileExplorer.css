@@ -79,7 +79,7 @@ ul.folderItems {
   position: relative;
   text-decoration: none;
   color: rgb(96, 94, 92);
-  font-size: 16px;
+  font-size: 14px;
 }
 
 a.folderLink {
@@ -200,5 +200,49 @@ a.folderLink {
 .emptyFolderMessage {
   margin: 0 7px;
   padding: 7px 0;
+  font-size: 14px;
+}
+
+/* Breadcrumb font size */
+.ms-Breadcrumb-item,
+.ms-Breadcrumb-itemLink,
+.ms-Breadcrumb-overflowButton {
+  font-size: 12px !important;
+}
+
+/* Error banner styling */
+.errorBanner {
+  display: flex;
+  align-items: flex-start;
+  padding: 12px 16px;
+  margin: 8px 0;
+  background-color: #FDE7E9;
+  border: 1px solid #D13438;
+  border-left: 4px solid #D13438;
+  border-radius: 2px;
+}
+
+.errorIcon {
   font-size: 20px;
+  color: #D13438;
+  margin-right: 12px;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+.errorContent {
+  flex: 1;
+}
+
+.errorMessage {
+  color: #A4262C;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.errorCode {
+  color: #605E5C;
+  font-size: 12px;
+  font-family: 'Courier New', Courier, monospace;
 }

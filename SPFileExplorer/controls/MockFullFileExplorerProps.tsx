@@ -433,6 +433,10 @@ const findFolderRecursively: (mockItem: any, path: string) => any = (
 let refreshMockComponent: () => void;
 let sortColumn: string | null = null;
 let isSorAscending: boolean | null = null;
+let mockError: { message: string; code?: string } | undefined = undefined;
+
+// Toggle error for testing - set to true to simulate SharePoint auth error
+const SIMULATE_ERROR = false; // Change to true to test error display
 
 const getFolderContent: (path: string) => IFileSystemItem[] = (
   path: string
@@ -485,6 +489,14 @@ export const initMockFullFileExplorerProps = (
 ): IFullFileExplorerProps => {
   refreshMockComponent = refreshComponent;
   
+  // Simulate SharePoint authentication error for testing
+  if (SIMULATE_ERROR) {
+    mockError = {
+      message: "To continue use SharePoint integration, relogin is required.",
+      code: "0x800608b8"
+    };
+  }
+  
   mockFullFileExplorerProps = {
     columns: mockColumns,
     currentFolderPath: mockFileStructure.path,
@@ -529,6 +541,7 @@ export const initMockFullFileExplorerProps = (
       );
     },
     resources,
+    error: mockError,
   };
 
   return mockFullFileExplorerProps as IFullFileExplorerProps;

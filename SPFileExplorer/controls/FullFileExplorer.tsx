@@ -98,7 +98,7 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
   }, []);
 
   useEffect(() => {
-    const filteredContent = filterFileContent(props.currentFolderContent, controlState.fileFilterText);
+    const filteredContent = getFilteredContent();
     
     selection.setChangeEvents(false);
     selection.setItems(filteredContent);
@@ -107,9 +107,29 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
       selection.setKeySelected(id, true, false);
     });
     selection.setChangeEvents(true);
-  }, [props.currentFolderContent, props.selectedRecordsKeys, controlState.fileFilterText]);
+  }, [props.currentFolderContent, props.selectedRecordsKeys, controlState.fileFilterText, controlState.selectedFolderPath]);
 
-  const filterFileContent = (items: IFileSystemItem[], filterText?: string): IFileSystemItem[] => {
+  // Sync internal state when folder path changes externally
+  useEffect(() => {
+    if (props.currentFolderPath !== controlState.selectedFolderPath) {
+      setControlState({
+        ...controlState,
+        selectedFolderPath: props.currentFolderPath,
+      });
+    }
+  }, [props.currentFolderPath]);
+
+  const filterByFolderPath = (items: IFileSystemItem[], folderPath: string): IFileSystemItem[] => {
+    // Filter to show ALL documents under the specified folder (recursively)
+    return items.filter(doc => {
+      const docLocation = doc.relativelocation || doc.path || '';
+      
+      // Check if doc is anywhere under this folder path
+      return docLocation.startsWith(folderPath + '/');
+    });
+  };
+
+  const filterBySearchText = (items: IFileSystemItem[], filterText?: string): IFileSystemItem[] => {
     if (!filterText || filterText.trim() === '') {
       return items;
     }
@@ -127,7 +147,13 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
   };
 
   const getFilteredContent = (): IFileSystemItem[] => {
-    return filterFileContent(props.currentFolderContent, controlState.fileFilterText);
+    // First filter by folder path
+    let filtered = filterByFolderPath(props.currentFolderContent, controlState.selectedFolderPath);
+    
+    // Then apply search text filter
+    filtered = filterBySearchText(filtered, controlState.fileFilterText);
+    
+    return filtered;
   };
 
   const handleSwitchLayout = (item?: IContextualMenuItem) => {
@@ -462,6 +488,17 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
                   <Breadcrumb
                     items={buildBreadcrums(controlState.rootFolder)}
                   ></Breadcrumb>
+                )}
+                {props.error && (
+                  <div className="errorBanner">
+                    <div className="errorIcon">⚠</div>
+                    <div className="errorContent">
+                      <div className="errorMessage">{props.error.message}</div>
+                      {props.error.code && (
+                        <div className="errorCode">Error Code: {props.error.code}</div>
+                      )}
+                    </div>
+                  </div>
                 )}
                 {getFilteredContent().length > 0 ? (
                   <div className="fileViewContent">

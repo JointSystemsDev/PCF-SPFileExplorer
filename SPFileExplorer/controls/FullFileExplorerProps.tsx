@@ -9,6 +9,8 @@ export const ALL_ITEMS_PAGE_SIZE = 5000;
 
 const SHARED_LOCATION_GUID = "17DE0DBB-153C-4C1A-B98A-223B3EA10125";
 const FOLDER_STRUCTURE_KEY = "FolderStructure";
+const ALL_DOCUMENTS_CACHE_KEY = "AllDocumentsCache";
+const CURRENT_FOLDER_PATH_KEY = "CurrentFolderPath";
 
 const buildFolderTreeFromDocuments = (
   rootPath: string,
@@ -76,41 +78,96 @@ export const initFullFileExplorerProps = (
 ): IFullFileExplorerProps => {
   const dataSet = context.parameters.documentsDataSet;
   let folderStructure = controlCache[FOLDER_STRUCTURE_KEY] as IFolder;
+  const useClientSideFiltering = (context.parameters as any).useClientSideFiltering?.raw ?? false;
 
   const sortExpression =
     dataSet.sorting && dataSet.sorting.length > 0
       ? dataSet.sorting.pop()
       : { name: "", sortDirection: 0 };
 
-  const currentFolderContent = dataSet.sortedRecordIds.map((recordId) => {
-    const record = dataSet.records[recordId];
-    const itemData = {} as IFileSystemItem;
+  // Build complete document list from dataset
+  const buildDocumentList = (): IFileSystemItem[] => {
+    return dataSet.sortedRecordIds.map((recordId) => {
+      const record = dataSet.records[recordId];
+      const itemData = {} as IFileSystemItem;
 
-    itemData["isSharedLocation"] =
-      record.getValue("locationid") === SHARED_LOCATION_GUID;
-    itemData.reference = (record as any)._entityReference;
-    itemData.key = record.getRecordId();
-    itemData.path = record.getFormattedValue("relativelocation");
-    dataSet.columns.forEach((c) => {
-      itemData[c.name] = record.getFormattedValue(c.name);
-      if (c.name === "ischeckedout") {
-        itemData[c.name] = record.getValue(c.name);
-      }
+      itemData["isSharedLocation"] =
+        record.getValue("locationid") === SHARED_LOCATION_GUID;
+      itemData.reference = (record as any)._entityReference;
+      itemData.key = record.getRecordId();
+      itemData.path = record.getFormattedValue("relativelocation");
+      dataSet.columns.forEach((c) => {
+        itemData[c.name] = record.getFormattedValue(c.name);
+        if (c.name === "ischeckedout") {
+          itemData[c.name] = record.getValue(c.name);
+        }
+      });
+
+      return itemData;
     });
+  };
 
-    return itemData;
-  });
+  // Cache all documents for client-side filtering
+  // Only cache when we have data and it's not still loading more pages
+  const hasAllData = !dataSet.paging?.hasNextPage;
+  if (useClientSideFiltering) {
+    // Always update cache with current data
+    const currentDocs = buildDocumentList();
+    
+    if (!controlCache[ALL_DOCUMENTS_CACHE_KEY]) {
+      // First time - initialize cache
+      controlCache[ALL_DOCUMENTS_CACHE_KEY] = currentDocs;
+      console.log('[PCF-CSF-DEBUG] Cache initialized with', currentDocs.length, 'documents, hasAllData:', hasAllData);
+    } else if (hasAllData && currentDocs.length > (controlCache[ALL_DOCUMENTS_CACHE_KEY] as IFileSystemItem[]).length) {
+      // Update cache if we got more data
+      controlCache[ALL_DOCUMENTS_CACHE_KEY] = currentDocs;
+      // console.log('[PCF-CSF-DEBUG] Cache updated with', currentDocs.length, 'documents');
+    }
+  }
 
-  const relativelocationCondition = dataSet.filtering
-    .getFilter()
-    ?.conditions?.filter(
-      (condition) => condition.attributeName == "relativelocation"
-    );
+  // Get current folder path - use cache for client-side, filter for server-side
+  let currentFolderPath: string;
+  
+  if (useClientSideFiltering) {
+    // CLIENT-SIDE: Read from cache, default to root folder path
+    currentFolderPath = controlCache[CURRENT_FOLDER_PATH_KEY];
+    
+    // If not set and we have folder structure, use root folder path
+    if (!currentFolderPath && folderStructure) {
+      currentFolderPath = folderStructure.path;
+      controlCache[CURRENT_FOLDER_PATH_KEY] = currentFolderPath;
+    }
+    
+    currentFolderPath = currentFolderPath || "";
+  } else {
+    // SERVER-SIDE: Read from dataset filter
+    const relativelocationCondition = dataSet.filtering
+      .getFilter()
+      ?.conditions?.filter(
+        (condition) => condition.attributeName == "relativelocation"
+      );
+    
+    currentFolderPath =
+      !relativelocationCondition || relativelocationCondition.length == 0
+        ? ""
+        : (relativelocationCondition[0].value as string);
+  }
 
-  const currentFolderPath =
-    !relativelocationCondition || relativelocationCondition.length == 0
-      ? ""
-      : (relativelocationCondition[0].value as string);
+  // Determine current folder content based on filtering mode
+  let currentFolderContent: IFileSystemItem[];
+  
+  if (useClientSideFiltering && controlCache[ALL_DOCUMENTS_CACHE_KEY] && hasAllData) {
+    // CLIENT-SIDE: Pass ALL documents to React component
+    // React will filter them internally based on currentFolderPath
+    currentFolderContent = controlCache[ALL_DOCUMENTS_CACHE_KEY] as IFileSystemItem[];
+    
+    // console.log('[PCF-CSF-DEBUG] Client-side mode - passing all', currentFolderContent.length, 'documents to React');
+    // console.log('[PCF-CSF-DEBUG] Current folder path:', currentFolderPath || '(root)');
+  } else {
+    // SERVER-SIDE: Use documents from dataset (already filtered by server)
+    currentFolderContent = buildDocumentList();
+    // console.log('[PCF-CSF-DEBUG] Server-side mode - passing', currentFolderContent.length, 'filtered documents');
+  }
 
   // Rebuild folder structure from all loaded documents if we have a root folder
   if (folderStructure && dataSet.sortedRecordIds.length > 0) {
@@ -129,6 +186,16 @@ export const initFullFileExplorerProps = (
       folderStructure.path,
       allDocuments
     );
+  }
+
+  // Check for dataset errors
+  let error: { message: string; code?: string } | undefined;
+  if (dataSet.error) {
+    error = {
+      message: dataSet.errorMessage || 'An error occurred loading documents',
+      code: dataSet.error ? String(dataSet.error) : undefined
+    };
+    console.error('[PCF Error]', error);
   }
 
   return {
@@ -233,30 +300,43 @@ export const initFullFileExplorerProps = (
       dataSet.refresh();
     },
     setCurrentFolder: (path: string): void => {
-      const existingFilter = dataSet.filtering.getFilter();
-      const dataFilter = existingFilter ?? { 
-        conditions: [],
-        filterOperator: 0 
-      };
-      const locationConditionId = dataFilter.conditions.findIndex(
-        (item) => item.attributeName == "relativelocation"
-      );
+      // console.log('[PCF-CSF-DEBUG] setCurrentFolder called with path:', path);
       
-      // Always set a filter, even for root folder
-      if (locationConditionId == -1) {
-        dataFilter.conditions.push({
-          attributeName: "relativelocation",
-          value: path,
-          conditionOperator: 0, // Equals operator
-        });
+      if (useClientSideFiltering) {
+        // CLIENT-SIDE: Just store path, React will handle filtering
+        controlCache[CURRENT_FOLDER_PATH_KEY] = path;
+        // console.log('[PCF-CSF-DEBUG] Client-side mode - path stored, triggering React re-render');
+        
+        // Trigger a re-render without fetching from server
+        // This will cause updateView to be called with the new path
+        context.parameters.documentsDataSet.refresh();
       } else {
-        dataFilter.conditions[locationConditionId].value = path;
+        // SERVER-SIDE: Set filter and fetch from server
+        const existingFilter = dataSet.filtering.getFilter();
+        const dataFilter = existingFilter ?? { 
+          conditions: [],
+          filterOperator: 0 
+        };
+        const locationConditionId = dataFilter.conditions.findIndex(
+          (item) => item.attributeName == "relativelocation"
+        );
+        
+        if (locationConditionId == -1) {
+          dataFilter.conditions.push({
+            attributeName: "relativelocation",
+            value: path,
+            conditionOperator: 0,
+          });
+        } else {
+          dataFilter.conditions[locationConditionId].value = path;
+        }
+        
+        dataSet.filtering.setFilter(dataFilter);
+        dataSet.refresh();
       }
-      
-      dataSet.filtering.setFilter(dataFilter);
-      dataSet.refresh();
     },
     currentFolderPath,
     resources,
+    error,
   };
 };

@@ -88,6 +88,14 @@
     <value>Define if folders navigation pane should be hidden (by default it is visible)</value>
     <comment>Property description for hiding folder tree</comment>
   </data>
+  <data name="Use Client-Side Filtering" xml:space="preserve">
+    <value>Use Client-Side Filtering</value>
+    <comment>Property display name for client-side filtering option</comment>
+  </data>
+  <data name="Enable client-side filtering for faster folder navigation. When enabled, documents are cached and filtered in memory. When disabled, data is always fetched fresh from the server." xml:space="preserve">
+    <value>Enable client-side filtering for faster folder navigation. When enabled, documents are cached and filtered in memory. When disabled, data is always fetched fresh from the server.</value>
+    <comment>Property description for client-side filtering option</comment>
+  </data>
   
   <!-- UI Strings -->
   <data name="FilterFilesByName" xml:space="preserve">

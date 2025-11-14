@@ -88,6 +88,14 @@
     <value>Legen Sie fest, ob der Ordnernavigationsbereich ausgeblendet werden soll (standardmäßig ist er sichtbar)</value>
     <comment>Eigenschaftsbeschreibung zum Ausblenden des Ordnerbaums</comment>
   </data>
+  <data name="Use Client-Side Filtering" xml:space="preserve">
+    <value>Clientseitige Filterung verwenden</value>
+    <comment>Eigenschafts-Anzeigename für clientseitige Filterungsoption</comment>
+  </data>
+  <data name="Enable client-side filtering for faster folder navigation. When enabled, documents are cached and filtered in memory. When disabled, data is always fetched fresh from the server." xml:space="preserve">
+    <value>Aktivieren Sie die clientseitige Filterung für schnellere Ordnernavigation. Wenn aktiviert, werden Dokumente im Speicher zwischengespeichert und gefiltert. Wenn deaktiviert, werden Daten immer frisch vom Server abgerufen.</value>
+    <comment>Eigenschaftsbeschreibung für clientseitige Filterungsoption</comment>
+  </data>
   
   <!-- UI Strings -->
   <data name="FilterFilesByName" xml:space="preserve">

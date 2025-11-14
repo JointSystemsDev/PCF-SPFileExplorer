@@ -82,4 +82,11 @@ export interface IFullFileExplorerProps {
    * Localized resource strings for the component.
    */
   resources: IResourceStrings;
+  /**
+   * Error information from the dataset, if any.
+   */
+  error?: {
+    message: string;
+    code?: string;
+  };
 }
