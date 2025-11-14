@@ -19,6 +19,7 @@ import {
   DetailsList,
   IColumn,
   ColumnActionsMode,
+  DetailsListLayoutMode,
 } from "@fluentui/react/lib/DetailsList";
 
 import { Link } from "@fluentui/react/lib/Link";
@@ -418,12 +419,18 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
 
   const getViewColumns = (columns: IFileViewColumn[]): IColumn[] => {
     return columns.map((c) => {
+      const isFullName = c.name === 'fullname';
+      const isRelativePath = c.name === 'relativelocation';
+      const isFlex = isFullName || isRelativePath;
+      
       const columnDefinition: IColumn = {
         key: c.name,
         name: c.displayName,
         fieldName: c.name,
-        minWidth: c.visualSizeFactor ?? 0,
-        maxWidth: 0,
+        // Flex columns: small minWidth (100px) allows equal 50/50 split
+        // Fixed columns: use visualSizeFactor for both min and max
+        minWidth: isFlex ? 100 : (c.visualSizeFactor ?? 100),
+        maxWidth: isFlex ? undefined : (c.visualSizeFactor ?? 100),
         isResizable: true,
         isRowHeader: true,
         isSorted: c.isSorted,
@@ -511,6 +518,7 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
                             columns={getViewColumns(props.columns)}
                             setKey="key"
                             selection={selection}
+                            layoutMode={DetailsListLayoutMode.justified}
                           />
                           {controlState.contextualMenuProps && (
                             <ContextualMenu
