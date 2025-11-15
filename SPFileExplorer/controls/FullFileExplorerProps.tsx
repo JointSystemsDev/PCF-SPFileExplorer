@@ -1,4 +1,3 @@
-import path = require("path");
 import { IInputs } from "../generated/ManifestTypes";
 import { IFileSystemItem } from "./IFileSystemItem";
 import { IFolder } from "./IFolder";
@@ -12,6 +11,60 @@ const FOLDER_STRUCTURE_KEY = "FolderStructure";
 const ALL_DOCUMENTS_CACHE_KEY = "AllDocumentsCache";
 const CURRENT_FOLDER_PATH_KEY = "CurrentFolderPath";
 const SORT_STATE_KEY = "ClientSideSortState";
+
+const normalizeFolderPath = (folderPath?: string): string => {
+  if (!folderPath) {
+    return "";
+  }
+
+  return folderPath.replace(/\/+$/, "");
+};
+
+const isDocumentInFolder = (doc: IFileSystemItem, folderPath: string): boolean => {
+  const normalizedFolder = normalizeFolderPath(folderPath);
+  const docLocation = normalizeFolderPath(doc.relativelocation || doc.path || "");
+
+  if (!normalizedFolder) {
+    return true;
+  }
+
+  if (!docLocation) {
+    return false;
+  }
+
+  return docLocation === normalizedFolder || docLocation.startsWith(normalizedFolder + '/');
+};
+
+const updateCacheForFolder = (
+  existingDocs: Record<string, IFileSystemItem> | undefined,
+  folderPath: string | undefined,
+  newDocs: IFileSystemItem[]
+): Record<string, IFileSystemItem> => {
+  const normalizedFolder = normalizeFolderPath(folderPath);
+  const cache: Record<string, IFileSystemItem> = normalizedFolder
+    ? { ...(existingDocs ?? {}) }
+    : {};
+
+  const newDocKeys = new Set<string>();
+
+  newDocs.forEach((doc) => {
+    if (doc?.key) {
+      cache[doc.key] = doc;
+      newDocKeys.add(doc.key);
+    }
+  });
+
+  if (normalizedFolder && existingDocs) {
+    Object.keys(existingDocs).forEach((key) => {
+      const cachedDoc = existingDocs[key];
+      if (cachedDoc && isDocumentInFolder(cachedDoc, normalizedFolder) && !newDocKeys.has(key)) {
+        delete cache[key];
+      }
+    });
+  }
+
+  return cache;
+};
 
 const buildFolderTreeFromDocuments = (
   rootPath: string,
@@ -96,7 +149,7 @@ export const initFullFileExplorerProps = (
   // Build complete document list from dataset
   const buildDocumentList = (): IFileSystemItem[] => {
 
-    return dataSet.sortedRecordIds.map((recordId, index) => {
+    return dataSet.sortedRecordIds.map((recordId) => {
       const record = dataSet.records[recordId];
       const itemData = {} as IFileSystemItem;
 
@@ -132,47 +185,76 @@ export const initFullFileExplorerProps = (
   };
 
   // Cache all documents for client-side filtering
-  // Only cache when we have data and it's not still loading more pages
-  const hasAllData = !dataSet.paging?.hasNextPage;
+  const dataSetFilter = dataSet.filtering.getFilter();
+  const relativelocationCondition = dataSetFilter?.conditions?.find(
+    (condition) => condition.attributeName == "relativelocation"
+  );
+
   if (useClientSideFiltering) {
-    // Always update cache with current data
     const currentDocs = buildDocumentList();
-    
-    if (!controlCache[ALL_DOCUMENTS_CACHE_KEY]) {
-      // First time - initialize cache
-      controlCache[ALL_DOCUMENTS_CACHE_KEY] = currentDocs;
-    } else if (hasAllData && currentDocs.length > (controlCache[ALL_DOCUMENTS_CACHE_KEY] as IFileSystemItem[]).length) {
-      // Update cache if we got more data
-      controlCache[ALL_DOCUMENTS_CACHE_KEY] = currentDocs;
-    }
+    const existingCache = controlCache[ALL_DOCUMENTS_CACHE_KEY] as
+      | Record<string, IFileSystemItem>
+      | undefined;
+    const targetFolderPath =
+      (relativelocationCondition?.value as string | undefined) ||
+      (controlCache[CURRENT_FOLDER_PATH_KEY] as string | undefined) ||
+      folderStructure?.path;
+
+    controlCache[ALL_DOCUMENTS_CACHE_KEY] = updateCacheForFolder(
+      existingCache,
+      targetFolderPath,
+      currentDocs
+    );
   }
 
   // Get current folder path - use cache for client-side, filter for server-side
   let currentFolderPath: string;
-  
+
   if (useClientSideFiltering) {
     // CLIENT-SIDE: Read from cache, default to root folder path
     currentFolderPath = controlCache[CURRENT_FOLDER_PATH_KEY];
-    
+
+    if (relativelocationCondition?.value) {
+      currentFolderPath = relativelocationCondition.value as string;
+      controlCache[CURRENT_FOLDER_PATH_KEY] = currentFolderPath;
+    }
+
     // If not set and we have folder structure, use root folder path
-    if (!currentFolderPath && folderStructure) {
+    if (!currentFolderPath && folderStructure?.path) {
       currentFolderPath = folderStructure.path;
       controlCache[CURRENT_FOLDER_PATH_KEY] = currentFolderPath;
     }
-    
+
     currentFolderPath = currentFolderPath || "";
+
+    // Ensure dataset filter stays in sync with cached folder path for command bar operations
+    if (
+      currentFolderPath &&
+      (!relativelocationCondition || normalizeFolderPath(relativelocationCondition.value as string) !== normalizeFolderPath(currentFolderPath))
+    ) {
+      const existingFilter = dataSetFilter ?? { conditions: [], filterOperator: 0 };
+      const locationConditionIndex = existingFilter.conditions.findIndex(
+        (item) => item.attributeName == "relativelocation"
+      );
+
+      if (locationConditionIndex === -1) {
+        existingFilter.conditions.push({
+          attributeName: "relativelocation",
+          value: currentFolderPath,
+          conditionOperator: 0,
+        });
+      } else {
+        existingFilter.conditions[locationConditionIndex].value = currentFolderPath;
+      }
+
+      dataSet.filtering.setFilter(existingFilter);
+    }
   } else {
     // SERVER-SIDE: Read from dataset filter
-    const relativelocationCondition = dataSet.filtering
-      .getFilter()
-      ?.conditions?.filter(
-        (condition) => condition.attributeName == "relativelocation"
-      );
-    
     currentFolderPath =
-      !relativelocationCondition || relativelocationCondition.length == 0
+      !relativelocationCondition
         ? ""
-        : (relativelocationCondition[0].value as string);
+        : (relativelocationCondition.value as string);
   }
 
   // Helper function to sort documents client-side
@@ -203,10 +285,12 @@ export const initFullFileExplorerProps = (
   // Determine current folder content based on filtering mode
   let currentFolderContent: IFileSystemItem[];
 
-  if (useClientSideFiltering && controlCache[ALL_DOCUMENTS_CACHE_KEY] && hasAllData) {
+  if (useClientSideFiltering && controlCache[ALL_DOCUMENTS_CACHE_KEY]) {
     // CLIENT-SIDE: Pass ALL documents to React component
     // React will filter them internally based on currentFolderPath
-    currentFolderContent = controlCache[ALL_DOCUMENTS_CACHE_KEY] as IFileSystemItem[];
+    currentFolderContent = [
+      ...Object.values(controlCache[ALL_DOCUMENTS_CACHE_KEY] as Record<string, IFileSystemItem>),
+    ];
 
     // FIX for Problem B: Apply client-side sorting if sort state exists
     if (sortExpression && sortExpression.name) {
@@ -223,17 +307,19 @@ export const initFullFileExplorerProps = (
   }
 
   // Rebuild folder structure from all loaded documents if we have a root folder
-  if (folderStructure && dataSet.sortedRecordIds.length > 0) {
-    // Get all documents from the dataset (not just current folder)
-    const allDocuments = dataSet.sortedRecordIds.map((recordId) => {
-      const record = dataSet.records[recordId];
-      return {
-        relativelocation: record.getFormattedValue("relativelocation"),
-        filetype: record.getFormattedValue("filetype"),
-        path: record.getFormattedValue("relativelocation"),
-      } as any;
-    });
-    
+  if (folderStructure) {
+    const allDocuments =
+      useClientSideFiltering && controlCache[ALL_DOCUMENTS_CACHE_KEY]
+        ? Object.values(controlCache[ALL_DOCUMENTS_CACHE_KEY] as Record<string, IFileSystemItem>)
+        : dataSet.sortedRecordIds.map((recordId) => {
+            const record = dataSet.records[recordId];
+            return {
+              relativelocation: record.getFormattedValue("relativelocation"),
+              filetype: record.getFormattedValue("filetype"),
+              path: record.getFormattedValue("relativelocation"),
+            } as any;
+          });
+
     // Rebuild the folder tree from documents
     folderStructure.children = buildFolderTreeFromDocuments(
       folderStructure.path,
@@ -316,15 +402,19 @@ export const initFullFileExplorerProps = (
                   ? result.entities[0]
                   : null;
               if (sharepointLocation) {
-                // Get all documents to build folder structure
-                const allDocuments = dataSet.sortedRecordIds.map((recordId) => {
-                  const record = dataSet.records[recordId];
-                  return {
-                    relativelocation: record.getFormattedValue("relativelocation"),
-                    filetype: record.getFormattedValue("filetype"),
-                    path: record.getFormattedValue("relativelocation"),
-                  } as any;
-                });
+                const allDocuments =
+                  useClientSideFiltering && controlCache[ALL_DOCUMENTS_CACHE_KEY]
+                    ? Object.values(
+                        controlCache[ALL_DOCUMENTS_CACHE_KEY] as Record<string, IFileSystemItem>
+                      )
+                    : dataSet.sortedRecordIds.map((recordId) => {
+                        const record = dataSet.records[recordId];
+                        return {
+                          relativelocation: record.getFormattedValue("relativelocation"),
+                          filetype: record.getFormattedValue("filetype"),
+                          path: record.getFormattedValue("relativelocation"),
+                        } as any;
+                      });
                 
                 controlCache[FOLDER_STRUCTURE_KEY] = folderStructure = {
                   name: sharepointLocation.name,
@@ -366,10 +456,29 @@ export const initFullFileExplorerProps = (
     },
     setCurrentFolder: (path: string): void => {
       if (useClientSideFiltering) {
-        // FIX for Problem A: Store path in cache and trigger re-render WITHOUT fetching from server
         controlCache[CURRENT_FOLDER_PATH_KEY] = path;
-        // Use notifyOutputChanged to trigger updateView without server fetch
-        // This allows React to re-filter the cached documents client-side
+
+        const existingFilter = dataSet.filtering.getFilter() ?? {
+          conditions: [],
+          filterOperator: 0,
+        };
+
+        const locationConditionId = existingFilter.conditions.findIndex(
+          (item) => item.attributeName == "relativelocation"
+        );
+
+        if (locationConditionId === -1) {
+          existingFilter.conditions.push({
+            attributeName: "relativelocation",
+            value: path,
+            conditionOperator: 0,
+          });
+        } else {
+          existingFilter.conditions[locationConditionId].value = path;
+        }
+
+        dataSet.filtering.setFilter(existingFilter);
+        dataSet.refresh();
         notifyOutputChanged();
       } else {
         // SERVER-SIDE: Set filter and fetch from server
