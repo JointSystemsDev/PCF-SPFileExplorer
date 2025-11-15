@@ -54,6 +54,8 @@ interface IFullFileExplorerState {
   rootFolder: IFolder;
   contextualMenuProps?: IContextualMenuProps;
   fileFilterText?: string;
+  sortColumn?: string;
+  sortAscending?: boolean;
 }
 
 const FullFileExplorer = (props: IFullFileExplorerProps) => {
@@ -64,43 +66,51 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
     fileFilterText: undefined,
   } as IFullFileExplorerState);
 
-  const handleSelectionChange = () => {
-    props.selectRecords(
-      selection.getSelection().map((s) => (s.key ? s.key.toString() : ""))
-    );
-  };
-
+  // Create selection object once - items will be updated in useEffect
   const selection = React.useMemo(
     () =>
       new Selection({
         selectionMode: SelectionMode.multiple,
-        onSelectionChanged: handleSelectionChange,
-        items: props.currentFolderContent as IObjectWithKey[],
+        onSelectionChanged: () => {
+          // Use callback to avoid stale closure
+          props.selectRecords(
+            selection.getSelection().map((s) => (s.key ? s.key.toString() : ""))
+          );
+        },
       }),
-    []
+    [] // Only create once, items updated via setItems in useEffect
   );
 
   useEffect(() => {
-    setControlState({
-      ...controlState,
+    // Initialize sort state from props
+    const sortedColumn = props.columns.find(c => c.isSorted);
+    const initialSortColumn = sortedColumn?.name;
+    const initialSortAscending = sortedColumn ? !sortedColumn.isSortedDescending : true;
+
+    setControlState(prev => ({
+      ...prev,
       loading: true,
-    });
+      sortColumn: initialSortColumn,
+      sortAscending: initialSortAscending,
+    }));
 
     props.getFolderStructure().then((folder) => {
-      setControlState({
-        ...controlState,
+      setControlState(prev => ({
+        ...prev,
         currentFolderContent: props.currentFolderContent,
         selectedFolderPath: folder.path,
         expandedFolders: [folder.path],
         loading: false,
         rootFolder: folder,
-      });
+        sortColumn: initialSortColumn,
+        sortAscending: initialSortAscending,
+      }));
     });
   }, []);
 
   useEffect(() => {
     const filteredContent = getFilteredContent();
-    
+
     selection.setChangeEvents(false);
     selection.setItems(filteredContent);
 
@@ -108,15 +118,15 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
       selection.setKeySelected(id, true, false);
     });
     selection.setChangeEvents(true);
-  }, [props.currentFolderContent, props.selectedRecordsKeys, controlState.fileFilterText, controlState.selectedFolderPath]);
+  }, [props.currentFolderContent, props.selectedRecordsKeys, controlState.fileFilterText, controlState.selectedFolderPath, controlState.sortColumn, controlState.sortAscending]);
 
   // Sync internal state when folder path changes externally
   useEffect(() => {
     if (props.currentFolderPath !== controlState.selectedFolderPath) {
-      setControlState({
-        ...controlState,
+      setControlState(prev => ({
+        ...prev,
         selectedFolderPath: props.currentFolderPath,
-      });
+      }));
     }
   }, [props.currentFolderPath]);
 
@@ -141,29 +151,55 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
   };
 
   const onFileFilterChanged = (newFilterText: string | undefined) => {
-    setControlState({
-      ...controlState,
+    setControlState(prev => ({
+      ...prev,
       fileFilterText: newFilterText,
+    }));
+  };
+
+  // Client-side sorting function
+  const sortItems = (items: IFileSystemItem[], sortColumn?: string, sortAscending?: boolean): IFileSystemItem[] => {
+    if (!sortColumn) return items;
+
+    return [...items].sort((a, b) => {
+      const aValue = a[sortColumn as keyof IFileSystemItem] as string || "";
+      const bValue = b[sortColumn as keyof IFileSystemItem] as string || "";
+
+      // Handle numeric sorting for certain fields
+      if (sortColumn === "size" || sortColumn === "filesize") {
+        const aNum = parseFloat(aValue) || 0;
+        const bNum = parseFloat(bValue) || 0;
+        return sortAscending ? aNum - bNum : bNum - aNum;
+      }
+
+      // String comparison for all other fields
+      const comparison = aValue.localeCompare(bValue, undefined, { numeric: true, sensitivity: 'base' });
+      return sortAscending ? comparison : -comparison;
     });
   };
 
   const getFilteredContent = (): IFileSystemItem[] => {
     // First filter by folder path
     let filtered = filterByFolderPath(props.currentFolderContent, controlState.selectedFolderPath);
-    
+
     // Then apply search text filter
     filtered = filterBySearchText(filtered, controlState.fileFilterText);
-    
+
+    // Apply client-side sorting if sort state exists
+    if (controlState.sortColumn) {
+      filtered = sortItems(filtered, controlState.sortColumn, controlState.sortAscending);
+    }
+
     return filtered;
   };
 
   const handleSwitchLayout = (item?: IContextualMenuItem) => {
     if (item) {
-      setControlState({
-        ...controlState,
+      setControlState(prev => ({
+        ...prev,
         loading: false,
         viewType: +item.key as ViewType,
-      });
+      }));
     }
   };
 
@@ -311,18 +347,18 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
   };
 
   const setCurrentFolder = (path: string) => {
-    setControlState({
-      ...controlState,
+    setControlState(prev => ({
+      ...prev,
       selectedFolderPath: path,
       //loading: true,
       error: false,
       errorMessage: undefined,
-    });
+    }));
     props.setCurrentFolder(path);
   };
 
   const setExpandedFoldersPaths = (paths: string[]) => {
-    setControlState({ ...controlState, expandedFolders: paths });
+    setControlState(prev => ({ ...prev, expandedFolders: paths }));
   };
 
   const openFileItem = (item: IFileSystemItem) => {
@@ -370,15 +406,21 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
   };
 
   const onActionMenuClosed = () => {
-    setControlState({ ...controlState, contextualMenuProps: undefined });
+    setControlState(prev => ({ ...prev, contextualMenuProps: undefined }));
   };
 
   const onSortAction = (column: IColumn, ascending: boolean) => {
-    setControlState({
-      ...controlState,
-      loading: true,
+    // Update React state for immediate UI update - use functional form to avoid stale closure
+    setControlState((prevState) => {
+      return {
+        ...prevState,
+        sortColumn: column.key,
+        sortAscending: ascending,
+        loading: false, // Don't show loading for client-side sort
+      };
     });
 
+    // Also call props.setSorting to persist in cache (but won't wait for re-render)
     props.setSorting(column.key, ascending);
   };
 
@@ -410,10 +452,10 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
         directionalHint: DirectionalHint.bottomLeftEdge,
         onDismiss: onActionMenuClosed,
       };
-      setControlState({
-        ...controlState,
+      setControlState(prev => ({
+        ...prev,
         contextualMenuProps: actionsMenuProps,
-      });
+      }));
     }
   };
 
@@ -422,22 +464,28 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
       const isFullName = c.name === 'fullname';
       const isRelativePath = c.name === 'relativelocation';
       const isFlex = isFullName || isRelativePath;
-      
+
+
+      // Use React state for sort indicators instead of props
+      const isSorted = controlState.sortColumn === c.name;
+
       const columnDefinition: IColumn = {
         key: c.name,
         name: c.displayName,
-        fieldName: c.name,
-        // Flex columns: small minWidth (100px) allows equal 50/50 split
-        // Fixed columns: use visualSizeFactor for both min and max
-        minWidth: isFlex ? 100 : (c.visualSizeFactor ?? 100),
+
+        // Display name logic
+        fieldName: isRelativePath ? 'relativelocationDisplay' : c.name,
+
+        // Flex columns split leftover space 50/50
+        minWidth: isFlex ? 250 : (c.visualSizeFactor ?? 100),
         maxWidth: isFlex ? undefined : (c.visualSizeFactor ?? 100),
+        flexGrow: isFlex ? 1 : undefined,
         isResizable: true,
         isRowHeader: true,
-        isSorted: c.isSorted,
-        isSortedDescending: c.isSortedDescending,
+        isSorted: controlState.sortColumn === c.name,
+        isSortedDescending: isSorted && !controlState.sortAscending,
         sortAscendingAriaLabel: c.sortAscendingLabel ?? props.resources.SortedAtoZ,
         sortDescendingAriaLabel: c.sortDescendingLabel ?? props.resources.SortedZtoA,
-
         onColumnClick: onColumnClick,
         onRender: (item, index, column) =>
           renderCell(item, column, c.isPrimary, c.renderIcon),
@@ -446,6 +494,11 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
       return columnDefinition;
     });
   };
+
+  // Memoize columns so reference changes when sort state changes
+  const viewColumns = React.useMemo(() => {
+    return getViewColumns(props.columns);
+  }, [props.columns, controlState.sortColumn, controlState.sortAscending]);
 
   return (
     <div className="spFileExplorer">
@@ -515,8 +568,8 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
                           <DetailsList
                             items={getFilteredContent()}
                             compact={controlState.viewType === ViewType.Compact}
-                            columns={getViewColumns(props.columns)}
-                            setKey="key"
+                            columns={viewColumns}
+                            setKey="items"
                             selection={selection}
                             layoutMode={DetailsListLayoutMode.justified}
                           />

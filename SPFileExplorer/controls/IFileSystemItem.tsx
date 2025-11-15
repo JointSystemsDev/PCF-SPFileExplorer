@@ -20,6 +20,18 @@ export interface IFileSystemItem {
    */
   path: string;
   /**
+   * File item's relative location (full path from SharePoint root).
+   */
+  relativelocation?: string;
+  /**
+   * File item's relative location for display (path with base directory removed).
+   */
+  relativelocationDisplay?: string;
+  /**
+   * SharePoint document location name (base folder name).
+   */
+  locationname?: string;
+  /**
    * Last file item's modification date.
    */
   modified: string;
