@@ -11,6 +11,8 @@ const FOLDER_STRUCTURE_KEY = "FolderStructure";
 const ALL_DOCUMENTS_CACHE_KEY = "AllDocumentsCache";
 const CURRENT_FOLDER_PATH_KEY = "CurrentFolderPath";
 const SORT_STATE_KEY = "ClientSideSortState";
+const SELECTED_IDS_CACHE_KEY = "SelectedRecordIds";
+const DATA_SNAPSHOT_KEY_PREFIX = "DataSnapshot_"; // Per-folder snapshot
 
 const normalizeFolderPath = (folderPath?: string): string => {
   if (!folderPath) {
@@ -64,6 +66,13 @@ const updateCacheForFolder = (
   }
 
   return cache;
+};
+
+const createDataSnapshot = (documents: IFileSystemItem[]): string => {
+  // Create a simple snapshot based on document keys and count
+  // This helps detect if data has actually changed
+  const keys = documents.map(d => d.key).sort().join('|');
+  return `${documents.length}:${keys}`;
 };
 
 const buildFolderTreeFromDocuments = (
@@ -172,12 +181,21 @@ export const initFullFileExplorerProps = (
 
       // Simple approach: Split path and remove first segment (base folder)
       const pathParts = fullPath.split('/');
+      let displayPath: string;
       if (pathParts.length > 1) {
         // Remove first part (base folder) and rejoin
-        itemData.relativelocationDisplay = pathParts.slice(1).join('/');
+        displayPath = pathParts.slice(1).join('/');
       } else {
         // Single segment or empty - use as is
-        itemData.relativelocationDisplay = fullPath;
+        displayPath = fullPath;
+      }
+      
+      // Decode URL-encoded characters (e.g., %20 -> space) for display
+      try {
+        itemData.relativelocationDisplay = decodeURIComponent(displayPath);
+      } catch {
+        // If decoding fails, use the original path
+        itemData.relativelocationDisplay = displayPath;
       }
 
       return itemData;
@@ -200,11 +218,30 @@ export const initFullFileExplorerProps = (
       (controlCache[CURRENT_FOLDER_PATH_KEY] as string | undefined) ||
       folderStructure?.path;
 
+    // Create folder-specific snapshot key to track changes per folder
+    const snapshotKey = DATA_SNAPSHOT_KEY_PREFIX + normalizeFolderPath(targetFolderPath);
+    
+    // Create snapshot of new data
+    const newSnapshot = createDataSnapshot(currentDocs);
+    const oldSnapshot = controlCache[snapshotKey] as string | undefined;
+
     controlCache[ALL_DOCUMENTS_CACHE_KEY] = updateCacheForFolder(
       existingCache,
       targetFolderPath,
       currentDocs
     );
+
+    // Store the new snapshot for this folder
+    controlCache[snapshotKey] = newSnapshot;
+
+    // Check if data actually changed for this specific folder
+    const dataChanged = oldSnapshot !== newSnapshot;
+    
+    // If data didn't change, preserve cached selections
+    // If data changed (upload/delete), clear cached selections to use dataset's selection
+    if (dataChanged) {
+      controlCache[SELECTED_IDS_CACHE_KEY] = undefined;
+    }
   }
 
   // Get current folder path - use cache for client-side, filter for server-side
@@ -359,9 +396,15 @@ export const initFullFileExplorerProps = (
       dataSet.openDatasetItem(reference as ComponentFramework.EntityReference);
     },
     selectRecords: (ids: string[]) => {
+      // Cache selections in client-side mode
+      if (useClientSideFiltering) {
+        controlCache[SELECTED_IDS_CACHE_KEY] = ids;
+      }
       dataSet.setSelectedRecordIds(ids);
     },
-    selectedRecordsKeys: dataSet.getSelectedRecordIds(),
+    selectedRecordsKeys: useClientSideFiltering && controlCache[SELECTED_IDS_CACHE_KEY]
+      ? controlCache[SELECTED_IDS_CACHE_KEY]
+      : dataSet.getSelectedRecordIds(),
     getFolderStructure: (): Promise<IFolder> => {
       const contextPage = (context as any).page;
       const locationEntityName = "sharepointdocumentlocation";
@@ -478,8 +521,8 @@ export const initFullFileExplorerProps = (
         }
 
         dataSet.filtering.setFilter(existingFilter);
-        dataSet.refresh();
-        notifyOutputChanged();
+        notifyOutputChanged(); // Trigger immediate re-render with cached data
+        dataSet.refresh(); // Background refresh
       } else {
         // SERVER-SIDE: Set filter and fetch from server
         const existingFilter = dataSet.filtering.getFilter();
