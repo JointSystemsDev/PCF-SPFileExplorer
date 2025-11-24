@@ -89,4 +89,14 @@ export interface IFullFileExplorerProps {
     message: string;
     code?: string;
   };
+  /**
+   * Toggles the portal release status for selected documents.
+   * @param selectedItems Array of selected file system items to update.
+   * @param enableRelease True to set title to "1", false to set to null.
+   * @returns Promise with update result containing success/failure counts.
+   */
+  togglePortalRelease: (
+    selectedItems: IFileSystemItem[],
+    enableRelease: boolean
+  ) => Promise<{ success: number; failed: number; errors: string[] }>;
 }

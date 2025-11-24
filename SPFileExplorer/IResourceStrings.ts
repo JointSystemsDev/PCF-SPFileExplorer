@@ -25,4 +25,11 @@ export interface IResourceStrings {
     NoFoldersToShow: string;
     ViewOptionsLabel: string;
     Selected: string;
+    PortalRelease: string;
+    Yes: string;
+    EnablePortalRelease: string;
+    DisablePortalRelease: string;
+    UpdatingPortalRelease: string;
+    PortalReleaseSuccess: string;
+    PortalReleaseWarning: string;
 }

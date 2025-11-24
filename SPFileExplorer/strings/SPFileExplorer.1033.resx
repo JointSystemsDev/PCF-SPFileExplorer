@@ -190,4 +190,32 @@
     <value> selected</value>
     <comment>Text to append when an option is selected</comment>
   </data>
+  <data name="PortalRelease" xml:space="preserve">
+    <value>Portal Release</value>
+    <comment>Column name for Portal Release status</comment>
+  </data>
+  <data name="Yes" xml:space="preserve">
+    <value>Yes</value>
+    <comment>Value displayed when portal release is approved</comment>
+  </data>
+  <data name="EnablePortalRelease" xml:space="preserve">
+    <value>Enable Portal Release</value>
+    <comment>Button label to enable portal release for selected documents</comment>
+  </data>
+  <data name="DisablePortalRelease" xml:space="preserve">
+    <value>Disable Portal Release</value>
+    <comment>Button label to disable portal release for selected documents</comment>
+  </data>
+  <data name="UpdatingPortalRelease" xml:space="preserve">
+    <value>Updating portal release...</value>
+    <comment>Message shown while updating portal release status</comment>
+  </data>
+  <data name="PortalReleaseSuccess" xml:space="preserve">
+    <value>Portal release updated successfully ({0} of {1} documents)</value>
+    <comment>Success message showing how many documents were updated. {0} is success count, {1} is total count</comment>
+  </data>
+  <data name="PortalReleaseWarning" xml:space="preserve">
+    <value>Some documents could not be updated ({0} failed)</value>
+    <comment>Warning message when some documents failed to update. {0} is failure count</comment>
+  </data>
 </root>

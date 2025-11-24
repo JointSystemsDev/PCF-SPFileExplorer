@@ -110,7 +110,14 @@ export class SPFileExplorer implements ComponentFramework.StandardControl<IInput
             SearchNoResults: context.resources.getString("SearchNoResults"),
             NoFoldersToShow: context.resources.getString("NoFoldersToShow"),
             ViewOptionsLabel: context.resources.getString("ViewOptionsLabel"),
-            Selected: context.resources.getString("Selected")
+            Selected: context.resources.getString("Selected"),
+            PortalRelease: context.resources.getString("PortalRelease"),
+            Yes: context.resources.getString("Yes"),
+            EnablePortalRelease: context.resources.getString("EnablePortalRelease"),
+            DisablePortalRelease: context.resources.getString("DisablePortalRelease"),
+            UpdatingPortalRelease: context.resources.getString("UpdatingPortalRelease"),
+            PortalReleaseSuccess: context.resources.getString("PortalReleaseSuccess"),
+            PortalReleaseWarning: context.resources.getString("PortalReleaseWarning")
         };
     }
 }

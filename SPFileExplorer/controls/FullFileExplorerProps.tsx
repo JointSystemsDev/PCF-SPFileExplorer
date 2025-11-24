@@ -168,13 +168,25 @@ export const initFullFileExplorerProps = (
       itemData.key = record.getRecordId();
       itemData.path = record.getFormattedValue("relativelocation");
 
-      // Read all column values
+      // Read all column values - get raw values for specific fields first
       dataSet.columns.forEach((c) => {
-        itemData[c.name] = record.getFormattedValue(c.name);
-        if (c.name === "ischeckedout") {
+        if (c.name === "ischeckedout" || c.name === "documentid" || c.name === "locationid") {
+          // For these fields, use raw value only
           itemData[c.name] = record.getValue(c.name);
+        } else {
+          // For other fields, use formatted value
+          itemData[c.name] = record.getFormattedValue(c.name);
         }
       });
+
+      // Ensure we get the absoluteurl - try formatted first, then raw value
+      if (!itemData["absoluteurl"]) {
+        itemData["absoluteurl"] = record.getFormattedValue("absoluteurl") || record.getValue("absoluteurl");
+      }
+
+      // Compute Portal Release field based on title
+      const titleValue = record.getFormattedValue("title");
+      itemData["portalrelease"] = titleValue === "1" ? resources.Yes : "";
 
       // FIX for Problem C: Extract base folder name from relativelocation path
       const fullPath = itemData.relativelocation || itemData.path || "";
@@ -373,25 +385,110 @@ export const initFullFileExplorerProps = (
     };
   }
 
+  const togglePortalRelease = async (
+    selectedItems: IFileSystemItem[],
+    enableRelease: boolean
+  ): Promise<{ success: number; failed: number; errors: string[] }> => {
+    const result = { success: 0, failed: 0, errors: [] as string[] };
+    const contextPage = (context as any).page;
+    
+    // Get parent entity information
+    const entityTypeName = contextPage?.entityTypeName;
+    const entityId = contextPage?.entityId;
+    
+    if (!entityTypeName || !entityId) {
+      result.errors.push("Parent entity information not available");
+      result.failed = selectedItems.length;
+      return result;
+    }
+
+    // Convert entity type name to OData format (e.g., "cif_foundation" -> "Microsoft.Dynamics.CRM.cif_foundation")
+    const odataEntityType = `Microsoft.Dynamics.CRM.${entityTypeName}`;
+    const entityIdField = `${entityTypeName}id`;
+
+    // Process each selected document
+    for (const item of selectedItems) {
+      try {
+        // Build the payload with required fields
+        const payload = {
+          Entity: {
+            "@odata.type": "Microsoft.Dynamics.CRM.sharepointdocument",
+            sharepointdocumentid: `{${item.key.toUpperCase()}}`,
+            documentid: item.documentid,
+            locationid: item.locationid || "00000000-0000-0000-0000-000000000000",
+            fullname: item.fullname,
+            title: enableRelease ? "1" : null
+          },
+          ParentEntityReference: {
+            "@odata.type": odataEntityType,
+            [entityIdField]: entityId
+          }
+        };
+
+        // Make the API call using fetch
+        const response = await fetch("/api/data/v9.0/EditDocumentProperties", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+          result.success++;
+        } else {
+          result.failed++;
+          const errorText = await response.text().catch(() => response.statusText);
+          result.errors.push(`${item.fullname}: ${errorText || 'Update failed'}`);
+        }
+      } catch (error: any) {
+        result.failed++;
+        const errorMessage = error?.message || error?.toString() || 'Unknown error';
+        result.errors.push(`${item.fullname}: ${errorMessage}`);
+      }
+    }
+
+    // Refresh the dataset after updates
+    if (result.success > 0) {
+      dataSet.refresh();
+    }
+
+    return result;
+  };
+
   return {
     hideFoldersPane: context.parameters.hideFoldersPane
       ? context.parameters.hideFoldersPane.raw
       : false,
-    columns: dataSet.columns
-      .filter((c) => !c.isHidden)
-      .map((c) => {
-        const col = {
-          name: c.name,
-          displayName: c.displayName,
-          isPrimary: c.isPrimary,
-          isSortable: !c.disableSorting,
-          visualSizeFactor: c.visualSizeFactor,
-          renderIcon: c.name === "fullname",
-          isSorted: sortExpression?.name == c.name,
-          isSortedDescending: sortExpression?.sortDirection == 1,
-        };
-        return col;
-      }),
+    columns: [
+      ...dataSet.columns
+        .filter((c) => !c.isHidden)
+        .map((c) => {
+          const col = {
+            name: c.name,
+            displayName: c.displayName,
+            isPrimary: c.isPrimary,
+            isSortable: !c.disableSorting,
+            visualSizeFactor: c.visualSizeFactor,
+            renderIcon: c.name === "fullname",
+            isSorted: sortExpression?.name == c.name,
+            isSortedDescending: sortExpression?.sortDirection == 1,
+          };
+          return col;
+        }),
+      // Add computed Portal Release column
+      {
+        name: "portalrelease",
+        displayName: resources.PortalRelease,
+        isPrimary: false,
+        isSortable: true,
+        visualSizeFactor: 100,
+        renderIcon: false,
+        isSorted: sortExpression?.name == "portalrelease",
+        isSortedDescending: sortExpression?.sortDirection == 1,
+      }
+    ],
     openRecord: (reference: any) => {
       dataSet.openDatasetItem(reference as ComponentFramework.EntityReference);
     },
@@ -551,5 +648,6 @@ export const initFullFileExplorerProps = (
     currentFolderPath,
     resources,
     error,
+    togglePortalRelease,
   };
 };

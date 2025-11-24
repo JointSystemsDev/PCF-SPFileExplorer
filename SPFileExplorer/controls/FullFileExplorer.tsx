@@ -56,6 +56,8 @@ interface IFullFileExplorerState {
   fileFilterText?: string;
   sortColumn?: string;
   sortAscending?: boolean;
+  isUpdatingPortalRelease?: boolean;
+  portalReleaseMessage?: string;
 }
 
 const FullFileExplorer = (props: IFullFileExplorerProps) => {
@@ -203,25 +205,92 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
     }
   };
 
+  const handleTogglePortalRelease = async () => {
+    const selectedItems = selection.getSelection() as IFileSystemItem[];
+    
+    if (selectedItems.length === 0) {
+      return;
+    }
+
+    // Determine action: if all have title="1", disable; otherwise enable
+    const allHaveRelease = selectedItems.every(item => item.title === "1");
+    const enableRelease = !allHaveRelease;
+
+    // Set loading state
+    setControlState(prev => ({
+      ...prev,
+      isUpdatingPortalRelease: true,
+      loading: true,
+      portalReleaseMessage: undefined,
+    }));
+
+    try {
+      const result = await props.togglePortalRelease(selectedItems, enableRelease);
+      
+      // Build result message
+      let message = props.resources.PortalReleaseSuccess
+        .replace('{0}', result.success.toString())
+        .replace('{1}', selectedItems.length.toString());
+      
+      if (result.failed > 0) {
+        message += ' ' + props.resources.PortalReleaseWarning.replace('{0}', result.failed.toString());
+      }
+
+      setControlState(prev => ({
+        ...prev,
+        isUpdatingPortalRelease: false,
+        loading: false,
+        portalReleaseMessage: message,
+      }));
+
+      // Clear message after 10 seconds
+      setTimeout(() => {
+        setControlState(prev => ({
+          ...prev,
+          portalReleaseMessage: undefined,
+        }));
+      }, 10000);
+    } catch (error: any) {
+      setControlState(prev => ({
+        ...prev,
+        isUpdatingPortalRelease: false,
+        loading: false,
+        portalReleaseMessage: error?.message || 'Update failed',
+      }));
+    }
+  };
+
   const getCommandBarItems = (): ICommandBarItemProps[] => {
-    return [
-      {
-        key: "filter",
-        onRender: () => (
-          <SearchBox
-            placeholder={props.resources.FilterFilesByName}
-            underlined={false}
-            className="filesSearchBox"
-            styles={{ root: { width: 200, marginLeft: 8 } }}
-            onSearch={onFileFilterChanged}
-            onChange={(e, value) => onFileFilterChanged(value)}
-          />
-        ),
-      },
-    ];
+    const items: ICommandBarItemProps[] = [];
+
+    // Add search box
+    items.push({
+      key: "filter",
+      onRender: () => (
+        <SearchBox
+          placeholder={props.resources.FilterFilesByName}
+          underlined={false}
+          className="filesSearchBox"
+          styles={{ root: { width: 200, marginLeft: 8 } }}
+          onSearch={onFileFilterChanged}
+          onChange={(e, value) => onFileFilterChanged(value)}
+        />
+      ),
+    });
+
+    return items;
   };
 
   const getViewTypeCommandBarItems = (): ICommandBarItemProps[] => {
+    const selectedItems = selection.getSelection() as IFileSystemItem[];
+    const hasSelection = selectedItems.length > 0;
+    
+    // Determine button label and action
+    const allHaveRelease = selectedItems.every(item => item.title === "1");
+    const buttonText = allHaveRelease 
+      ? props.resources.DisablePortalRelease 
+      : props.resources.EnablePortalRelease;
+
     let viewIconName: string;
     let viewName: string;
     switch (controlState.viewType) {
@@ -238,74 +307,92 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
         viewName = props.resources.TileView;
     }
 
-    const farItems: ICommandBarItemProps[] = [
-      {
-        key: "listOptions",
-        className: "commandBarNoChevron",
-        title: props.resources.OpenViewOptionsMenu,
-        ariaLabel: props.resources.ViewOptionsSelected.replace('{0}', viewName),
-        name: viewName,
+    const farItems: ICommandBarItemProps[] = [];
+
+    // Add Portal Release toggle button (only visible when items are selected)
+    // Place it on the right side, before view switch
+    if (hasSelection) {
+      farItems.push({
+        key: "togglePortalRelease",
+        text: buttonText,
         iconProps: {
-          iconName: viewIconName,
+          iconName: "PublishContent",
         },
-        //iconOnly: true,
-        subMenuProps: {
-          items: [
-            {
-              key: ViewType.List.toString(),
-              name: props.resources.ListView,
-              iconProps: {
-                iconName: "List",
-              },
-              canCheck: true,
-              checked: controlState.viewType === ViewType.List,
-              ariaLabel: props.resources.ViewOptionsLabel.replace('{0}', props.resources.ListView).replace('{1}', controlState.viewType === ViewType.List ? props.resources.Selected : ''),
-              title: props.resources.ViewItemsInList,
-              onClick: (
-                _ev?:
-                  | React.MouseEvent<HTMLElement>
-                  | React.KeyboardEvent<HTMLElement>,
-                item?: IContextualMenuItem
-              ) => handleSwitchLayout(item),
-            },
-            {
-              key: ViewType.Compact.toString(),
-              name: props.resources.CompactView,
-              iconProps: {
-                iconName: "AlignLeft",
-              },
-              canCheck: true,
-              checked: controlState.viewType === ViewType.Compact,
-              ariaLabel: props.resources.ViewOptionsLabel.replace('{0}', props.resources.CompactView).replace('{1}', controlState.viewType === ViewType.Compact ? props.resources.Selected : ''),
-              title: props.resources.ViewItemsInCompactList,
-              onClick: (
-                _ev?:
-                  | React.MouseEvent<HTMLElement>
-                  | React.KeyboardEvent<HTMLElement>,
-                item?: IContextualMenuItem
-              ) => handleSwitchLayout(item),
-            },
-            {
-              key: ViewType.Tiles.toString(),
-              name: props.resources.TileView,
-              iconProps: {
-                iconName: "GridViewMedium",
-              },
-              canCheck: true,
-              checked: controlState.viewType === ViewType.Tiles,
-              ariaLabel: props.resources.ViewOptionsLabel.replace('{0}', props.resources.TileView).replace('{1}', controlState.viewType === ViewType.Tiles ? props.resources.Selected : ''),
-              title: props.resources.ViewItemsWithTiles,
-              onClick: (
-                _ev?:
-                  | React.MouseEvent<HTMLElement>
-                  | React.KeyboardEvent<HTMLElement>,
-                item?: IContextualMenuItem
-              ) => handleSwitchLayout(item),
-            },
-          ],
+        disabled: controlState.isUpdatingPortalRelease,
+        onClick: () => {
+          handleTogglePortalRelease();
         },
+      });
+    }
+
+    // Add view switch button
+    farItems.push({
+      key: "listOptions",
+      className: "commandBarNoChevron",
+      title: props.resources.OpenViewOptionsMenu,
+      ariaLabel: props.resources.ViewOptionsSelected.replace('{0}', viewName),
+      name: viewName,
+      iconProps: {
+        iconName: viewIconName,
       },
-    ];
+      //iconOnly: true,
+      subMenuProps: {
+        items: [
+          {
+            key: ViewType.List.toString(),
+            name: props.resources.ListView,
+            iconProps: {
+              iconName: "List",
+            },
+            canCheck: true,
+            checked: controlState.viewType === ViewType.List,
+            ariaLabel: props.resources.ViewOptionsLabel.replace('{0}', props.resources.ListView).replace('{1}', controlState.viewType === ViewType.List ? props.resources.Selected : ''),
+            title: props.resources.ViewItemsInList,
+            onClick: (
+              _ev?:
+                | React.MouseEvent<HTMLElement>
+                | React.KeyboardEvent<HTMLElement>,
+              item?: IContextualMenuItem
+            ) => handleSwitchLayout(item),
+          },
+          {
+            key: ViewType.Compact.toString(),
+            name: props.resources.CompactView,
+            iconProps: {
+              iconName: "AlignLeft",
+            },
+            canCheck: true,
+            checked: controlState.viewType === ViewType.Compact,
+            ariaLabel: props.resources.ViewOptionsLabel.replace('{0}', props.resources.CompactView).replace('{1}', controlState.viewType === ViewType.Compact ? props.resources.Selected : ''),
+            title: props.resources.ViewItemsInCompactList,
+            onClick: (
+              _ev?:
+                | React.MouseEvent<HTMLElement>
+                | React.KeyboardEvent<HTMLElement>,
+              item?: IContextualMenuItem
+            ) => handleSwitchLayout(item),
+          },
+          {
+            key: ViewType.Tiles.toString(),
+            name: props.resources.TileView,
+            iconProps: {
+              iconName: "GridViewMedium",
+            },
+            canCheck: true,
+            checked: controlState.viewType === ViewType.Tiles,
+            ariaLabel: props.resources.ViewOptionsLabel.replace('{0}', props.resources.TileView).replace('{1}', controlState.viewType === ViewType.Tiles ? props.resources.Selected : ''),
+            title: props.resources.ViewItemsWithTiles,
+            onClick: (
+              _ev?:
+                | React.MouseEvent<HTMLElement>
+                | React.KeyboardEvent<HTMLElement>,
+              item?: IContextualMenuItem
+            ) => handleSwitchLayout(item),
+          },
+        ],
+      },
+    });
+
     return farItems;
   };
 
@@ -548,6 +635,14 @@ const FullFileExplorer = (props: IFullFileExplorerProps) => {
                   <Breadcrumb
                     items={buildBreadcrums(controlState.rootFolder)}
                   ></Breadcrumb>
+                )}
+                {controlState.portalReleaseMessage && (
+                  <div className="errorBanner" style={{ backgroundColor: '#d4edda', borderColor: '#c3e6cb' }}>
+                    <div className="errorIcon" style={{ color: '#155724' }}>ℹ</div>
+                    <div className="errorContent">
+                      <div className="errorMessage" style={{ color: '#155724' }}>{controlState.portalReleaseMessage}</div>
+                    </div>
+                  </div>
                 )}
                 {props.error && (
                   <div className="errorBanner">

@@ -190,4 +190,32 @@
     <value> ausgewählt</value>
     <comment>Text, der angehängt wird, wenn eine Option ausgewählt ist</comment>
   </data>
+  <data name="PortalRelease" xml:space="preserve">
+    <value>Portal Freigabe</value>
+    <comment>Spaltenname für Portal-Freigabestatus</comment>
+  </data>
+  <data name="Yes" xml:space="preserve">
+    <value>Ja</value>
+    <comment>Wert, der angezeigt wird, wenn Portal-Freigabe genehmigt ist</comment>
+  </data>
+  <data name="EnablePortalRelease" xml:space="preserve">
+    <value>Portal Freigabe aktivieren</value>
+    <comment>Schaltflächenbeschriftung zum Aktivieren der Portal-Freigabe für ausgewählte Dokumente</comment>
+  </data>
+  <data name="DisablePortalRelease" xml:space="preserve">
+    <value>Portal Freigabe deaktivieren</value>
+    <comment>Schaltflächenbeschriftung zum Deaktivieren der Portal-Freigabe für ausgewählte Dokumente</comment>
+  </data>
+  <data name="UpdatingPortalRelease" xml:space="preserve">
+    <value>Portal Freigabe wird aktualisiert...</value>
+    <comment>Meldung während der Aktualisierung des Portal-Freigabestatus</comment>
+  </data>
+  <data name="PortalReleaseSuccess" xml:space="preserve">
+    <value>Portal Freigabe erfolgreich aktualisiert ({0} von {1} Dokumenten)</value>
+    <comment>Erfolgsmeldung mit Anzahl der aktualisierten Dokumente. {0} ist Erfolgsanzahl, {1} ist Gesamtanzahl</comment>
+  </data>
+  <data name="PortalReleaseWarning" xml:space="preserve">
+    <value>Einige Dokumente konnten nicht aktualisiert werden ({0} fehlgeschlagen)</value>
+    <comment>Warnmeldung wenn einige Dokumente nicht aktualisiert werden konnten. {0} ist Fehleranzahl</comment>
+  </data>
 </root>
